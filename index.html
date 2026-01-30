@@ -285,13 +285,11 @@
         // 全局变量
         let nfcReader = null;
         let isScanning = false;
+        let readAbortController = null;
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 检测浏览器是否支持 Web NFC API
             checkNFCSupport();
-
-            // 绑定按钮事件
             document.getElementById('read-btn').addEventListener('click', handleRead);
             document.getElementById('write-btn').addEventListener('click', handleWrite);
         });
@@ -303,20 +301,16 @@
             const supportMessage = document.getElementById('support-message');
             
             if ('NDEFReader' in window) {
-                // 支持 Web NFC API
                 supportMessage.className = 'message-area message-success';
                 supportMessage.textContent = '✅ 浏览器支持 Web NFC API';
                 supportMessage.classList.remove('hidden');
                 
-                // 初始化 NFC 读取器
                 initNFCReader();
             } else {
-                // 不支持 Web NFC API
                 supportMessage.className = 'message-area message-error';
                 supportMessage.textContent = '❌ 浏览器不支持 Web NFC API，请使用最新版 Chrome/Edge 浏览器';
                 supportMessage.classList.remove('hidden');
                 
-                // 禁用所有 NFC 操作按钮
                 document.getElementById('read-btn').disabled = true;
                 document.getElementById('write-btn').disabled = true;
             }
@@ -338,92 +332,197 @@
          * 处理读取操作
          */
         async function handleRead() {
-            if (isScanning) return;
+            if (isScanning) {
+                // 如果已经在扫描，则停止
+                if (readAbortController) {
+                    readAbortController.abort();
+                    readAbortController = null;
+                }
+                isScanning = false;
+                document.getElementById('read-btn').disabled = false;
+                updateStatus('已停止扫描', 'info');
+                return;
+            }
             
             try {
                 isScanning = true;
-                updateStatus('<div class="loading"></div> 正在扫描 NFC 卡片，请将卡片靠近设备', 'info');
-                document.getElementById('read-btn').disabled = true;
+                updateStatus('<div class="loading"></div> 正在扫描 NFC 卡片，请将卡片靠近设备背面...', 'info');
+                document.getElementById('read-btn').textContent = '停止读取';
+                
+                // 创建新的 AbortController 用于停止扫描
+                readAbortController = new AbortController();
                 
                 // 申请 NFC 权限并开始扫描
-                await nfcReader.scan({ signal: new AbortController().signal });
+                await nfcReader.scan({ signal: readAbortController.signal });
                 
                 // 监听读取事件
-                nfcReader.onreading = function(event) {
-                    // 尝试多种方式获取卡片信息
-                    let cardId = '未知';
-                    let techs = '未知';
-                    
+                nfcReader.onreading = async function(event) {
                     try {
-                        // 方式1: 从event.target获取
-                        if (event.target) {
-                            const tag = event.target;
-                            // 尝试获取ID
-                            if (tag.id) {
-                                try {
-                                    cardId = uint8ArrayToHex(new Uint8Array(tag.id));
-                                } catch (e) {
-                                    // 尝试直接转换
-                                    cardId = tag.id.toString();
-                                }
-                            } else if (tag.serialNumber) {
-                                // 某些实现使用serialNumber
-                                cardId = tag.serialNumber;
-                            }
+                        const serialNumber = event.serialNumber || '未知';
+                        const message = event.message;
+                        
+                        // 获取卡片信息（需要额外的API调用）
+                        let techs = await getCardTechs();
+                        
+                        // 解析数据
+                        let data = new Uint8Array();
+                        let hasData = false;
+                        
+                        if (message && message.records && message.records.length > 0) {
+                            // 如果有多个记录，取第一个记录的数据
+                            const record = message.records[0];
                             
-                            // 尝试获取技术列表
-                            if (tag.techs) {
-                                techs = tag.techs.join(', ');
-                            } else if (tag.technologies) {
-                                // 某些实现使用technologies
-                                techs = tag.technologies.join(', ');
-                            }
-                        }
-                    } catch (e) {
-                        console.error('获取卡片信息失败:', e);
-                    }
-                    
-                    // 获取数据
-                    let data = new Uint8Array();
-                    let hasData = false;
-                    
-                    try {
-                        if (event.message && event.message.records && event.message.records.length > 0) {
-                            const record = event.message.records[0];
-                            if (record.data) {
+                            // 不同类型的记录有不同的数据格式
+                            if (record.recordType === "text") {
+                                // 文本记录
+                                const textDecoder = new TextDecoder(record.encoding || "utf-8");
+                                const text = textDecoder.decode(record.data);
+                                data = new TextEncoder().encode(text);
+                                hasData = true;
+                            } else if (record.recordType === "url") {
+                                // URL记录
+                                const textDecoder = new TextDecoder();
+                                const url = textDecoder.decode(record.data);
+                                data = new TextEncoder().encode(url);
+                                hasData = true;
+                            } else if (record.recordType === "mime") {
+                                // MIME类型记录
                                 data = record.data;
                                 hasData = true;
+                            } else if (record.recordType === "opaque") {
+                                // 原始数据
+                                data = record.data;
+                                hasData = true;
+                            } else {
+                                // 其他类型，尝试直接读取
+                                try {
+                                    data = record.data;
+                                    hasData = true;
+                                } catch (e) {
+                                    console.log('无法读取记录数据:', e);
+                                }
                             }
                         }
-                    } catch (e) {
-                        console.error('获取卡片数据失败:', e);
+                        
+                        // 显示信息
+                        displayReadData(data, serialNumber, techs, message);
+                        
+                        if (hasData) {
+                            updateStatus('✅ 读取成功', 'success');
+                        } else {
+                            updateStatus('⚠️ 卡片已识别，但未读取到数据', 'info');
+                        }
+                        
+                    } catch (error) {
+                        console.error('处理读取数据时出错:', error);
+                        handleError('处理读取数据时出错', error);
                     }
-                    
-                    // 显示信息
-                    displayReadData(data, cardId, techs);
-                    
-                    if (hasData) {
-                        updateStatus('✅ 读取成功', 'success');
-                    } else {
-                        updateStatus('⚠️ 未读取到NDEF数据，但已识别卡片', 'info');
-                    }
-                    
-                    isScanning = false;
-                    document.getElementById('read-btn').disabled = false;
                 };
                 
                 // 监听读取错误事件
                 nfcReader.onreadingerror = function(event) {
+                    console.error('读取错误:', event);
                     handleError('读取过程中发生错误', event.error);
-                    isScanning = false;
-                    document.getElementById('read-btn').disabled = false;
+                    resetReadState();
                 };
                 
             } catch (error) {
                 handleError('读取操作失败', error);
-                isScanning = false;
-                document.getElementById('read-btn').disabled = false;
+                resetReadState();
             }
+        }
+
+        /**
+         * 尝试获取卡片支持的技术
+         */
+        async function getCardTechs() {
+            try {
+                // 这个方法可能需要浏览器特定实现
+                // 有些浏览器可能不支持这个功能
+                if (nfcReader && typeof nfcReader.getSupportedTechnologies === 'function') {
+                    return await nfcReader.getSupportedTechnologies();
+                }
+                
+                // 尝试其他可能的属性
+                if (nfcReader.techs) {
+                    return nfcReader.techs;
+                }
+                
+                return 'NFC-A, NFC-B'; // 常见的默认值
+            } catch (e) {
+                console.log('无法获取卡片技术:', e);
+                return '未知';
+            }
+        }
+
+        /**
+         * 展示读取的数据
+         */
+        function displayReadData(data, serialNumber, techs, message) {
+            const dataDisplay = document.getElementById('data-display');
+            const format = document.querySelector('input[name="read-format"]:checked').value;
+            
+            // 显示卡片信息
+            let displayText = `卡片序列号：${serialNumber}\n`;
+            displayText += `支持的技术：${techs}\n\n`;
+            
+            // 显示NDEF消息信息
+            if (message && message.records) {
+                displayText += `NDEF记录数量：${message.records.length}\n`;
+                
+                message.records.forEach((record, index) => {
+                    displayText += `\n记录 #${index + 1}：\n`;
+                    displayText += `  类型：${record.recordType}\n`;
+                    
+                    if (record.mediaType) {
+                        displayText += `  MIME类型：${record.mediaType}\n`;
+                    }
+                    
+                    if (record.recordType === "text" && record.lang) {
+                        displayText += `  语言：${record.lang}\n`;
+                    }
+                    
+                    // 显示数据
+                    if (record.data && record.data.byteLength > 0) {
+                        let dataArray = new Uint8Array(record.data);
+                        if (format === 'hex') {
+                            const hexString = uint8ArrayToHex(dataArray);
+                            displayText += `  数据（十六进制）：${hexString}\n`;
+                        } else {
+                            const decString = Array.from(dataArray).join(' ');
+                            displayText += `  数据（十进制）：${decString}\n`;
+                        }
+                        
+                        // 如果是文本，显示可读文本
+                        if (record.recordType === "text") {
+                            try {
+                                const textDecoder = new TextDecoder(record.encoding || "utf-8");
+                                const text = textDecoder.decode(record.data);
+                                displayText += `  文本内容：${text}\n`;
+                            } catch (e) {
+                                console.log('无法解码文本:', e);
+                            }
+                        }
+                        
+                        // 如果是URL，显示URL
+                        if (record.recordType === "url") {
+                            try {
+                                const textDecoder = new TextDecoder();
+                                const url = textDecoder.decode(record.data);
+                                displayText += `  URL：${url}\n`;
+                            } catch (e) {
+                                console.log('无法解码URL:', e);
+                            }
+                        }
+                    } else {
+                        displayText += `  数据：无\n`;
+                    }
+                });
+            } else {
+                displayText += '未读取到NDEF消息\n';
+            }
+            
+            dataDisplay.textContent = displayText;
         }
 
         /**
@@ -440,18 +539,32 @@
                 }
                 
                 isScanning = true;
-                updateStatus('<div class="loading"></div> 正在准备写入数据，请将卡片靠近设备', 'info');
+                updateStatus('<div class="loading"></div> 正在准备写入数据，请将卡片靠近设备背面并保持不动...', 'info');
                 document.getElementById('write-btn').disabled = true;
                 
                 // 转换十六进制字符串为 Uint8Array
                 const uint8Array = hexToUint8Array(writeData);
                 
-                // 申请 NFC 权限并开始写入
-                await nfcReader.write({ records: [{ recordType: 'opaque', data: uint8Array }] });
+                // 创建NDEF消息记录
+                const ndefMessage = {
+                    records: [{
+                        recordType: "opaque", // 使用opaque类型存储原始数据
+                        data: uint8Array,
+                        mediaType: "application/octet-stream"
+                    }]
+                };
                 
-                updateStatus('✅ 写入成功', 'success');
-                isScanning = false;
-                document.getElementById('write-btn').disabled = false;
+                // 写入数据
+                await nfcReader.write(ndefMessage, { signal: new AbortController().signal });
+                
+                updateStatus('✅ 写入成功！卡片可以移开了', 'success');
+                
+                // 重新启用读取
+                setTimeout(() => {
+                    isScanning = false;
+                    document.getElementById('write-btn').disabled = false;
+                    updateStatus('就绪，可以继续操作', 'info');
+                }, 2000);
                 
             } catch (error) {
                 handleError('写入操作失败', error);
@@ -461,45 +574,26 @@
         }
 
         /**
-         * 展示读取的数据
-         * @param {Uint8Array} data - 读取的二进制数据
-         * @param {string} cardId - 卡片ID
-         * @param {string} techs - 支持的技术
+         * 重置读取状态
          */
-        function displayReadData(data, cardId, techs) {
-            const dataDisplay = document.getElementById('data-display');
-            const format = document.querySelector('input[name="read-format"]:checked').value;
-            
-            // 显示卡片信息
-            let displayText = `卡片ID：${cardId}\n`;
-            displayText += `支持的技术：${techs}\n\n`;
-            
-            // 显示数据
-            if (data.length > 0) {
-                if (format === 'hex') {
-                    // 转换为十六进制格式
-                    const hexString = uint8ArrayToHex(data);
-                    displayText += `读取到的数据（十六进制）：\n${hexString}`;
-                } else {
-                    // 转换为十进制格式
-                    const decString = Array.from(data).join(' ');
-                    displayText += `读取到的数据（十进制）：\n${decString}`;
-                }
-            } else {
-                displayText += '未读取到数据';
-            }
-            
-            dataDisplay.textContent = displayText;
+        function resetReadState() {
+            isScanning = false;
+            document.getElementById('read-btn').disabled = false;
+            document.getElementById('read-btn').textContent = '读取 NFC 卡片';
+            readAbortController = null;
         }
 
         /**
          * 十六进制字符串转换为 Uint8Array
-         * @param {string} hexString - 十六进制字符串
-         * @returns {Uint8Array}
          */
         function hexToUint8Array(hexString) {
             // 移除所有空格并转换为大写
             const cleanHex = hexString.replace(/\s+/g, '').toUpperCase();
+            
+            // 验证十六进制格式
+            if (!/^[0-9A-F]*$/.test(cleanHex)) {
+                throw new Error('请输入有效的十六进制字符 (0-9, A-F)');
+            }
             
             // 确保字符串长度为偶数
             if (cleanHex.length % 2 !== 0) {
@@ -525,19 +619,15 @@
 
         /**
          * Uint8Array 转换为十六进制字符串
-         * @param {Uint8Array} data - 二进制数据
-         * @returns {string}
          */
         function uint8ArrayToHex(data) {
             return Array.from(data)
-                .map(byte => byte.toString(16).padStart(2, '0'))
+                .map(byte => byte.toString(16).padStart(2, '0').toUpperCase())
                 .join(' ');
         }
 
         /**
          * 更新状态消息
-         * @param {string} message - 状态消息
-         * @param {string} type - 消息类型：info, success, error
          */
         function updateStatus(message, type) {
             const statusMessage = document.getElementById('status-message');
@@ -547,25 +637,28 @@
 
         /**
          * 处理错误
-         * @param {string} message - 错误消息
-         * @param {Error} error - 错误对象
          */
         function handleError(message, error) {
             let errorMessage = message;
             
             if (error) {
+                console.error('NFC错误详情:', error);
+                
                 switch (error.name) {
                     case 'NotAllowedError':
-                        errorMessage += '：权限被拒绝，请在浏览器设置中手动开启 NFC 权限';
+                        errorMessage += '：权限被拒绝，请允许浏览器访问NFC';
+                        break;
+                    case 'NotSupportedError':
+                        errorMessage += '：设备不支持NFC功能';
                         break;
                     case 'NotReadableError':
-                        errorMessage += '：无法读取 NFC 卡片，请确保卡片靠近设备';
+                        errorMessage += '：无法读取卡片，请确认卡片类型是否正确';
+                        break;
+                    case 'InvalidStateError':
+                        errorMessage += '：NFC操作状态无效，请重试';
                         break;
                     case 'AbortError':
-                        errorMessage += '：操作被中止';
-                        break;
-                    case 'TimeoutError':
-                        errorMessage += '：操作超时，请重试';
+                        errorMessage += '：操作被取消';
                         break;
                     default:
                         errorMessage += `：${error.message || error}`;
@@ -574,6 +667,13 @@
             }
             
             updateStatus(`❌ ${errorMessage}`, 'error');
+            
+            // 如果是权限错误，显示额外提示
+            if (error && error.name === 'NotAllowedError') {
+                setTimeout(() => {
+                    updateStatus('💡 提示：请在手机设置中为浏览器启用NFC权限，然后刷新页面重试', 'info');
+                }, 2000);
+            }
         }
     </script>
 </body>
