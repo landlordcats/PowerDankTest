@@ -346,16 +346,23 @@
                 document.getElementById('read-btn').disabled = true;
                 
                 // 申请 NFC 权限并开始扫描
-                await nfcReader.scan();
+                await nfcReader.scan({ signal: new AbortController().signal });
                 
                 // 监听读取事件
                 nfcReader.onreading = function(event) {
+                    // 获取卡片信息
+                    const tag = event.target;
+                    const cardId = tag.id ? uint8ArrayToHex(new Uint8Array(tag.id)) : '未知';
+                    const techs = tag.techs ? tag.techs.join(', ') : '未知';
+                    
+                    // 获取数据
                     const record = event.message.records[0];
                     if (record.data) {
                         const uint8Array = record.data;
-                        displayReadData(uint8Array);
+                        displayReadData(uint8Array, cardId, techs);
                         updateStatus('✅ 读取成功', 'success');
                     } else {
+                        displayReadData(new Uint8Array(), cardId, techs);
                         updateStatus('❌ 未读取到数据', 'error');
                     }
                     isScanning = false;
@@ -413,20 +420,33 @@
         /**
          * 展示读取的数据
          * @param {Uint8Array} data - 读取的二进制数据
+         * @param {string} cardId - 卡片ID
+         * @param {string} techs - 支持的技术
          */
-        function displayReadData(data) {
+        function displayReadData(data, cardId, techs) {
             const dataDisplay = document.getElementById('data-display');
             const format = document.querySelector('input[name="read-format"]:checked').value;
             
-            if (format === 'hex') {
-                // 转换为十六进制格式
-                const hexString = uint8ArrayToHex(data);
-                dataDisplay.textContent = `读取到的数据（十六进制）：\n${hexString}`;
+            // 显示卡片信息
+            let displayText = `卡片ID：${cardId}\n`;
+            displayText += `支持的技术：${techs}\n\n`;
+            
+            // 显示数据
+            if (data.length > 0) {
+                if (format === 'hex') {
+                    // 转换为十六进制格式
+                    const hexString = uint8ArrayToHex(data);
+                    displayText += `读取到的数据（十六进制）：\n${hexString}`;
+                } else {
+                    // 转换为十进制格式
+                    const decString = Array.from(data).join(' ');
+                    displayText += `读取到的数据（十进制）：\n${decString}`;
+                }
             } else {
-                // 转换为十进制格式
-                const decString = Array.from(data).join(' ');
-                dataDisplay.textContent = `读取到的数据（十进制）：\n${decString}`;
+                displayText += '未读取到数据';
             }
+            
+            dataDisplay.textContent = displayText;
         }
 
         /**
