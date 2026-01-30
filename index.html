@@ -350,21 +350,64 @@
                 
                 // 监听读取事件
                 nfcReader.onreading = function(event) {
-                    // 获取卡片信息
-                    const tag = event.target;
-                    const cardId = tag.id ? uint8ArrayToHex(new Uint8Array(tag.id)) : '未知';
-                    const techs = tag.techs ? tag.techs.join(', ') : '未知';
+                    // 尝试多种方式获取卡片信息
+                    let cardId = '未知';
+                    let techs = '未知';
+                    
+                    try {
+                        // 方式1: 从event.target获取
+                        if (event.target) {
+                            const tag = event.target;
+                            // 尝试获取ID
+                            if (tag.id) {
+                                try {
+                                    cardId = uint8ArrayToHex(new Uint8Array(tag.id));
+                                } catch (e) {
+                                    // 尝试直接转换
+                                    cardId = tag.id.toString();
+                                }
+                            } else if (tag.serialNumber) {
+                                // 某些实现使用serialNumber
+                                cardId = tag.serialNumber;
+                            }
+                            
+                            // 尝试获取技术列表
+                            if (tag.techs) {
+                                techs = tag.techs.join(', ');
+                            } else if (tag.technologies) {
+                                // 某些实现使用technologies
+                                techs = tag.technologies.join(', ');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('获取卡片信息失败:', e);
+                    }
                     
                     // 获取数据
-                    const record = event.message.records[0];
-                    if (record.data) {
-                        const uint8Array = record.data;
-                        displayReadData(uint8Array, cardId, techs);
+                    let data = new Uint8Array();
+                    let hasData = false;
+                    
+                    try {
+                        if (event.message && event.message.records && event.message.records.length > 0) {
+                            const record = event.message.records[0];
+                            if (record.data) {
+                                data = record.data;
+                                hasData = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('获取卡片数据失败:', e);
+                    }
+                    
+                    // 显示信息
+                    displayReadData(data, cardId, techs);
+                    
+                    if (hasData) {
                         updateStatus('✅ 读取成功', 'success');
                     } else {
-                        displayReadData(new Uint8Array(), cardId, techs);
-                        updateStatus('❌ 未读取到数据', 'error');
+                        updateStatus('⚠️ 未读取到NDEF数据，但已识别卡片', 'info');
                     }
+                    
                     isScanning = false;
                     document.getElementById('read-btn').disabled = false;
                 };
