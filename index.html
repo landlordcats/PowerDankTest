@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web NFC 读写工具</title>
+    <style>
+        /* 全局样式重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* 容器样式 */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 标题样式 */
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        /* 说明文本 */
+        .instructions {
+            background-color: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #34495e;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        /* 按钮样式 */
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        /* 输入区域样式 */
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: monospace;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        /* 数据展示区域 */
+        .data-display {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 100px;
+        }
+
+        /* 提示区域 */
+        .message-area {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .message-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 隐藏类 */
+        .hidden {
+            display: none;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            button {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+
+            input[type="text"],
+            textarea {
+                font-size: 13px;
+            }
+        }
+
+        /* 数据格式选择器 */
+        .format-selector {
+            margin: 10px 0;
+        }
+
+        .format-selector label {
+            display: inline-block;
+            margin-right: 15px;
+            cursor: pointer;
+        }
+
+        /* 权限提示 */
+        .permission-prompt {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Web NFC 读写工具</h1>
+
+        <!-- 操作引导说明 -->
+        <div class="instructions">
+            <h3>使用说明：</h3>
+            <ul>
+                <li>请确保设备已开启 NFC 功能</li>
+                <li>建议使用 Chrome/Edge 等 Chromium 内核浏览器</li>
+                <li>本工具仅在 HTTPS 或 localhost 安全上下文下工作</li>
+                <li>首次操作时会触发浏览器 NFC 权限授权，请允许访问</li>
+                <li>所有 NFC 操作均通过页面按钮点击触发</li>
+            </ul>
+        </div>
+
+        <!-- 支持检测提示 -->
+        <div id="support-message" class="message-area hidden"></div>
+
+        <!-- 读取区域 -->
+        <div class="card">
+            <h2>读取区域</h2>
+            <button id="read-btn">读取 NFC 卡片</button>
+            <div class="format-selector">
+                <label><input type="radio" name="read-format" value="hex" checked> 十六进制</label>
+                <label><input type="radio" name="read-format" value="dec"> 十进制</label>
+            </div>
+        </div>
+
+        <!-- 写入区域 -->
+        <div class="card">
+            <h2>写入区域</h2>
+            <div class="input-group">
+                <label for="write-data">写入数据（十六进制格式，如：00 A1 B2 C3）</label>
+                <textarea id="write-data" placeholder="请输入要写入的十六进制数据"></textarea>
+            </div>
+            <button id="write-btn">写入 NFC 卡片</button>
+        </div>
+
+        <!-- 数据展示区域 -->
+        <div class="card">
+            <h2>数据展示区域</h2>
+            <div id="data-display" class="data-display">
+                操作结果将显示在这里...
+            </div>
+        </div>
+
+        <!-- 提示区域 -->
+        <div class="card">
+            <h2>操作状态</h2>
+            <div id="status-message" class="message-area message-info">
+                就绪，请点击按钮开始操作
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let nfcReader = null;
+        let isScanning = false;
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检测浏览器是否支持 Web NFC API
+            checkNFCSupport();
+
+            // 绑定按钮事件
+            document.getElementById('read-btn').addEventListener('click', handleRead);
+            document.getElementById('write-btn').addEventListener('click', handleWrite);
+        });
+
+        /**
+         * 检测浏览器是否支持 Web NFC API
+         */
+        function checkNFCSupport() {
+            const supportMessage = document.getElementById('support-message');
+            
+            if ('NDEFReader' in window) {
+                // 支持 Web NFC API
+                supportMessage.className = 'message-area message-success';
+                supportMessage.textContent = '✅ 浏览器支持 Web NFC API';
+                supportMessage.classList.remove('hidden');
+                
+                // 初始化 NFC 读取器
+                initNFCReader();
+            } else {
+                // 不支持 Web NFC API
+                supportMessage.className = 'message-area message-error';
+                supportMessage.textContent = '❌ 浏览器不支持 Web NFC API，请使用最新版 Chrome/Edge 浏览器';
+                supportMessage.classList.remove('hidden');
+                
+                // 禁用所有 NFC 操作按钮
+                document.getElementById('read-btn').disabled = true;
+                document.getElementById('write-btn').disabled = true;
+            }
+        }
+
+        /**
+         * 初始化 NFC 读取器
+         */
+        function initNFCReader() {
+            try {
+                nfcReader = new NDEFReader();
+                updateStatus('就绪，请点击按钮开始操作', 'info');
+            } catch (error) {
+                handleError('初始化 NFC 读取器失败', error);
+            }
+        }
+
+        /**
+         * 处理读取操作
+         */
+        async function handleRead() {
+            if (isScanning) return;
+            
+            try {
+                isScanning = true;
+                updateStatus('<div class="loading"></div> 正在扫描 NFC 卡片，请将卡片靠近设备', 'info');
+                document.getElementById('read-btn').disabled = true;
+                
+                // 申请 NFC 权限并开始扫描
+                await nfcReader.scan();
+                
+                // 监听读取事件
+                nfcReader.onreading = function(event) {
+                    const record = event.message.records[0];
+                    if (record.data) {
+                        const uint8Array = record.data;
+                        displayReadData(uint8Array);
+                        updateStatus('✅ 读取成功', 'success');
+                    } else {
+                        updateStatus('❌ 未读取到数据', 'error');
+                    }
+                    isScanning = false;
+                    document.getElementById('read-btn').disabled = false;
+                };
+                
+                // 监听读取错误事件
+                nfcReader.onreadingerror = function(event) {
+                    handleError('读取过程中发生错误', event.error);
+                    isScanning = false;
+                    document.getElementById('read-btn').disabled = false;
+                };
+                
+            } catch (error) {
+                handleError('读取操作失败', error);
+                isScanning = false;
+                document.getElementById('read-btn').disabled = false;
+            }
+        }
+
+        /**
+         * 处理写入操作
+         */
+        async function handleWrite() {
+            if (isScanning) return;
+            
+            try {
+                const writeData = document.getElementById('write-data').value.trim();
+                if (!writeData) {
+                    updateStatus('❌ 请输入要写入的数据', 'error');
+                    return;
+                }
+                
+                isScanning = true;
+                updateStatus('<div class="loading"></div> 正在准备写入数据，请将卡片靠近设备', 'info');
+                document.getElementById('write-btn').disabled = true;
+                
+                // 转换十六进制字符串为 Uint8Array
+                const uint8Array = hexToUint8Array(writeData);
+                
+                // 申请 NFC 权限并开始写入
+                await nfcReader.write({ records: [{ recordType: 'opaque', data: uint8Array }] });
+                
+                updateStatus('✅ 写入成功', 'success');
+                isScanning = false;
+                document.getElementById('write-btn').disabled = false;
+                
+            } catch (error) {
+                handleError('写入操作失败', error);
+                isScanning = false;
+                document.getElementById('write-btn').disabled = false;
+            }
+        }
+
+        /**
+         * 展示读取的数据
+         * @param {Uint8Array} data - 读取的二进制数据
+         */
+        function displayReadData(data) {
+            const dataDisplay = document.getElementById('data-display');
+            const format = document.querySelector('input[name="read-format"]:checked').value;
+            
+            if (format === 'hex') {
+                // 转换为十六进制格式
+                const hexString = uint8ArrayToHex(data);
+                dataDisplay.textContent = `读取到的数据（十六进制）：\n${hexString}`;
+            } else {
+                // 转换为十进制格式
+                const decString = Array.from(data).join(' ');
+                dataDisplay.textContent = `读取到的数据（十进制）：\n${decString}`;
+            }
+        }
+
+        /**
+         * 十六进制字符串转换为 Uint8Array
+         * @param {string} hexString - 十六进制字符串
+         * @returns {Uint8Array}
+         */
+        function hexToUint8Array(hexString) {
+            // 移除所有空格并转换为大写
+            const cleanHex = hexString.replace(/\s+/g, '').toUpperCase();
+            
+            // 确保字符串长度为偶数
+            if (cleanHex.length % 2 !== 0) {
+                throw new Error('十六进制字符串长度必须为偶数');
+            }
+            
+            const length = cleanHex.length / 2;
+            const result = new Uint8Array(length);
+            
+            for (let i = 0; i < length; i++) {
+                const byte = cleanHex.substr(i * 2, 2);
+                const value = parseInt(byte, 16);
+                
+                if (isNaN(value)) {
+                    throw new Error(`无效的十六进制值: ${byte}`);
+                }
+                
+                result[i] = value;
+            }
+            
+            return result;
+        }
+
+        /**
+         * Uint8Array 转换为十六进制字符串
+         * @param {Uint8Array} data - 二进制数据
+         * @returns {string}
+         */
+        function uint8ArrayToHex(data) {
+            return Array.from(data)
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join(' ');
+        }
+
+        /**
+         * 更新状态消息
+         * @param {string} message - 状态消息
+         * @param {string} type - 消息类型：info, success, error
+         */
+        function updateStatus(message, type) {
+            const statusMessage = document.getElementById('status-message');
+            statusMessage.className = `message-area message-${type}`;
+            statusMessage.innerHTML = message;
+        }
+
+        /**
+         * 处理错误
+         * @param {string} message - 错误消息
+         * @param {Error} error - 错误对象
+         */
+        function handleError(message, error) {
+            let errorMessage = message;
+            
+            if (error) {
+                switch (error.name) {
+                    case 'NotAllowedError':
+                        errorMessage += '：权限被拒绝，请在浏览器设置中手动开启 NFC 权限';
+                        break;
+                    case 'NotReadableError':
+                        errorMessage += '：无法读取 NFC 卡片，请确保卡片靠近设备';
+                        break;
+                    case 'AbortError':
+                        errorMessage += '：操作被中止';
+                        break;
+                    case 'TimeoutError':
+                        errorMessage += '：操作超时，请重试';
+                        break;
+                    default:
+                        errorMessage += `：${error.message || error}`;
+                        break;
+                }
+            }
+            
+            updateStatus(`❌ ${errorMessage}`, 'error');
+        }
+    </script>
+</body>
+</html>
