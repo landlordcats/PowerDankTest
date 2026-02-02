@@ -6,29 +6,68 @@
     <title>网页NFC卡片交互</title>
     <style>
         body { padding: 20px; font-size: 16px; }
-        #log { margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 200px; white-space: pre-wrap; }
-        button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
+        #log { margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 200px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; background: #f5f5f5; }
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; margin: 5px; }
+        .button-group { margin-bottom: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .status.active { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
-    <button id="startNfc">启动NFC检测</button>
+    <h2>网页NFC卡片交互</h2>
+    
+    <div class="button-group">
+        <button id="startNfc">启动NFC检测</button>
+        <button id="stopNfc" disabled>停止NFC检测</button>
+        <button id="sendCommand" disabled>发送测试指令</button>
+    </div>
+    
+    <div id="status" class="status"></div>
+    
     <div id="log">日志信息：\n</div>
 
     <script>
         const startBtn = document.getElementById('startNfc');
+        const stopBtn = document.getElementById('stopNfc');
+        const sendBtn = document.getElementById('sendCommand');
         const log = document.getElementById('log');
-        let ndefReader; // 全局NFC阅读器实例，用于持续监听
+        const statusDiv = document.getElementById('status');
+        
+        let ndefReader = null;
+        let isScanning = false;
+        let currentTagId = null;
 
         // 日志打印工具
-        function printLog(text) {
-            log.textContent += `[${new Date().toLocaleTimeString()}] ${text}\n`;
-            log.scrollTop = log.scrollHeight; // 自动滚动到底部
+        function printLog(text, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            let prefix = '';
+            
+            switch(type) {
+                case 'error': prefix = '❌ ERROR:'; break;
+                case 'success': prefix = '✅ SUCCESS:'; break;
+                case 'warning': prefix = '⚠️ WARNING:'; break;
+                default: prefix = 'ℹ️ INFO:';
+            }
+            
+            log.textContent += `[${timestamp}] ${prefix} ${text}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 更新状态显示
+        function updateStatus(message, type = '') {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status';
+            if (type) {
+                statusDiv.classList.add(type);
+            }
         }
 
         // 检查浏览器是否支持Web NFC API
         function checkNfcSupport() {
             if (!('NDEFReader' in window)) {
-                printLog('错误：当前浏览器不支持Web NFC API（仅安卓Chrome/Edge支持）');
+                updateStatus('当前浏览器不支持Web NFC API（仅安卓Chrome/Edge支持）', 'error');
+                printLog('错误：当前浏览器不支持Web NFC API（仅安卓Chrome/Edge支持）', 'error');
                 startBtn.disabled = true;
                 return false;
             }
@@ -36,67 +75,205 @@
             return true;
         }
 
-        // 核心：NFC初始化、监听、指令发送、回应接收
+        // 核心：NFC初始化、监听
         async function initNfc() {
             if (!checkNfcSupport()) return;
-
+            
             try {
-                // 1. 创建NDEFReader实例，申请NFC权限（用户需手动允许）
                 ndefReader = new NDEFReader();
-                printLog('请在弹窗中允许网页访问NFC设备');
+                updateStatus('请在弹窗中允许网页访问NFC设备', 'warning');
 
-                // 2. 监听NFC卡片靠近事件（scan事件：卡片检测/重连触发）
-                ndefReader.addEventListener('scan', async (event) => {
-                    const tag = event.tag; // 获取NFC卡片标签对象，包含核心信息
+                // 监听NFC卡片靠近事件
+                ndefReader.addEventListener('reading', (event) => {
+                    const { message, serialNumber } = event;
+                    currentTagId = serialNumber;
                     
-                    // 3. 读取NFC卡片唯一ID（tag ID）：Uint8Array格式，转十六进制更易读
-                    const tagId = Array.from(tag.id).map(byte => byte.toString(16).padStart(2, '0')).join(':');
-                    printLog(`检测到NFC卡片 | 卡片ID：${tagId}`);
-                    printLog(`卡片支持的协议：${tag.serialNumber ? 'ISO 14443A/B' : '其他'}`);
-
-                    try {
-                        // 4. 向NFC卡片发送自定义指令（核心步骤）
-                        // 指令格式：Uint8Array（需遵循你的NFC卡片通信协议，示例为通用测试指令）
-                        // 示例：发送「00 A4 04 00 00」（选择空应用，多数NFC卡片支持）
-                        const sendCommand = new Uint8Array([0xC2, 0xFF]);
-                        printLog(`发送指令（十六进制）：${Array.from(sendCommand).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-
-                        // 5. 等待并接收卡片回应（write方法返回回应数据，Uint8Array格式）
-                        // write方法：向NFC卡片写入/发送指令，自动等待回应，超时抛错
-                        const response = await ndefReader.write(sendCommand, {
-                            signal: AbortSignal.timeout(5000) // 5秒超时，避免无限等待
+                    // 显示卡片ID
+                    if (serialNumber) {
+                        updateStatus(`检测到NFC卡片 | ID: ${serialNumber}`, 'active');
+                        printLog(`检测到NFC卡片 | 卡片ID：${serialNumber}`);
+                        sendBtn.disabled = false;
+                    }
+                    
+                    // 如果有消息记录，显示内容
+                    if (message && message.records.length > 0) {
+                        message.records.forEach((record, index) => {
+                            try {
+                                if (record.recordType === "text") {
+                                    const textDecoder = new TextDecoder(record.encoding);
+                                    const text = textDecoder.decode(record.data);
+                                    printLog(`记录 ${index+1} (文本): ${text}`);
+                                } else if (record.recordType === "url") {
+                                    printLog(`记录 ${index+1} (URL): ${record.data}`);
+                                } else if (record.recordType === "mime") {
+                                    const decoder = new TextDecoder();
+                                    const text = decoder.decode(record.data);
+                                    printLog(`记录 ${index+1} (MIME ${record.mediaType}): ${text}`);
+                                }
+                            } catch (e) {
+                                printLog(`记录 ${index+1} 解析失败: ${e.message}`, 'warning');
+                            }
                         });
-
-                        // 6. 解析回应数据（转十六进制，方便查看和业务处理）
-                        const responseHex = Array.from(response).map(byte => byte.toString(16).padStart(2, '0')).join(' ');
-                        printLog(`卡片回应成功（十六进制）：${responseHex}`);
-                        printLog('------------------------NFC交互完成------------------------\n');
-
-                    } catch (sendErr) {
-                        printLog(`指令发送/回应接收失败：${sendErr.message}`);
-                        printLog('请检查指令格式是否符合卡片协议，或卡片是否支持该指令\n');
                     }
                 });
 
-                // 启动NFC监听（需用户授权后执行，仅能由用户交互触发，如点击按钮）
+                // 启动NFC监听
                 await ndefReader.scan({
-                    keepReading: true // 保持监听，支持多张卡片连续检测，设为false则检测一次后停止
+                    signal: AbortSignal.timeout(30000) // 30秒后自动停止，避免长时间占用
                 });
+                
+                isScanning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                updateStatus('NFC监听已启动，请将NFC卡片靠近手机背面', 'active');
                 printLog('NFC监听已启动，请将NFC卡片靠近手机背面\n');
 
-            } catch (initErr) {
-                printLog(`NFC初始化失败：${initErr.message}`);
-                if (initErr.name === 'NotAllowedError') {
-                    printLog('原因：用户拒绝了NFC权限申请，请重新启动并允许权限\n');
+            } catch (error) {
+                isScanning = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                sendBtn.disabled = true;
+                
+                updateStatus(`NFC初始化失败: ${error.name}`, 'error');
+                printLog(`NFC初始化失败：${error.message}`, 'error');
+                
+                if (error.name === 'NotAllowedError') {
+                    printLog('用户拒绝了NFC权限申请，请重新启动并允许权限\n');
+                } else if (error.name === 'NotSupportedError') {
+                    printLog('设备不支持NFC功能\n');
                 }
             }
         }
 
-        // 绑定按钮点击事件（用户交互触发NFC初始化，浏览器安全限制）
+        // 停止NFC监听
+        async function stopNfc() {
+            if (ndefReader) {
+                try {
+                    // 停止扫描
+                    if (ndefReader.stop) {
+                        await ndefReader.stop();
+                    }
+                    ndefReader = null;
+                } catch (error) {
+                    printLog(`停止NFC时出错: ${error.message}`, 'warning');
+                }
+            }
+            
+            isScanning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            sendBtn.disabled = true;
+            currentTagId = null;
+            
+            updateStatus('NFC监听已停止', '');
+            printLog('NFC监听已停止\n');
+        }
+
+        // 发送指令到NFC卡片
+        async function sendNfcCommand() {
+            if (!ndefReader || !currentTagId) {
+                updateStatus('未检测到NFC卡片，请先靠近卡片', 'error');
+                printLog('错误：未检测到NFC卡片，请先靠近卡片', 'error');
+                return;
+            }
+
+            try {
+                // 示例指令：发送测试数据
+                // 可以根据需要修改指令内容
+                const command = new Uint8Array([0x00, 0xA4, 0x04, 0x00, 0x00]);
+                const commandHex = Array.from(command).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                printLog(`准备发送指令: ${commandHex}`);
+                updateStatus('正在发送指令...', 'warning');
+
+                // 使用MIME类型记录发送指令
+                const record = {
+                    recordType: "mime",
+                    mediaType: "application/octet-stream",
+                    data: command
+                };
+
+                // 向卡片写入数据
+                await ndefReader.write({
+                    records: [record]
+                });
+
+                updateStatus('指令发送成功，请查看卡片返回数据', 'success');
+                printLog(`指令发送成功: ${commandHex}`);
+                printLog('等待卡片响应...\n');
+
+            } catch (error) {
+                updateStatus(`指令发送失败: ${error.message}`, 'error');
+                printLog(`指令发送失败：${error.message}`, 'error');
+                
+                if (error.name === 'NotAllowedError') {
+                    printLog('NFC权限已失效，请重新授权\n');
+                } else if (error.name === 'InvalidStateError') {
+                    printLog('NFC通信状态异常\n');
+                }
+            }
+        }
+
+        // 发送自定义APDU指令
+        async function sendCustomCommand(cla, ins, p1, p2, data = []) {
+            if (!ndefReader || !currentTagId) return false;
+
+            try {
+                // 构建APDU指令
+                const command = [cla, ins, p1, p2];
+                if (data.length > 0) {
+                    command.push(data.length);
+                    command.push(...data);
+                }
+                command.push(0x00); // Le
+
+                const commandBytes = new Uint8Array(command);
+                const record = {
+                    recordType: "mime",
+                    mediaType: "application/octet-stream",
+                    data: commandBytes
+                };
+
+                await ndefReader.write({ records: [record] });
+                printLog(`APDU指令发送成功: ${Array.from(commandBytes).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+                return true;
+
+            } catch (error) {
+                printLog(`APDU指令发送失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // 绑定按钮事件
         startBtn.addEventListener('click', initNfc);
+        stopBtn.addEventListener('click', stopNfc);
+        sendBtn.addEventListener('click', sendNfcCommand);
 
         // 页面加载时检查支持性
-        window.onload = checkNfcSupport;
+        window.onload = () => {
+            checkNfcSupport();
+            
+            // 页面卸载时停止NFC
+            window.addEventListener('beforeunload', stopNfc);
+        };
+
+        // 示例：发送各种APDU指令
+        function sendExampleCommands() {
+            // SELECT PPSE命令
+            sendCustomCommand(
+                0x00, 0xA4, 0x04, 0x00,
+                [0x31, 0x50, 0x41, 0x59, 0x2E, 0x53, 0x59, 0x53, 0x2E, 0x44, 0x44, 0x46, 0x30, 0x31]
+            );
+
+            // GET DATA命令
+            setTimeout(() => {
+                sendCustomCommand(0x80, 0xCA, 0x9F, 0x17);
+            }, 1000);
+
+            // READ BINARY命令
+            setTimeout(() => {
+                sendCustomCommand(0x00, 0xB0, 0x00, 0x00, [0x0F]);
+            }, 2000);
+        }
     </script>
 </body>
 </html>
