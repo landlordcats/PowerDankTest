@@ -180,15 +180,14 @@
             try {
                 // 示例指令：发送测试数据
                 // 可以根据需要修改指令内容
-                const command = new Uint8Array([0x00, 0xA4, 0x04, 0x00, 0x00]);
+                const command = new Uint8Array([0xC2, 0xFF]);
                 const commandHex = Array.from(command).map(b => b.toString(16).padStart(2, '0')).join(' ');
                 printLog(`准备发送指令: ${commandHex}`);
                 updateStatus('正在发送指令...', 'warning');
 
                 // 使用MIME类型记录发送指令
                 const record = {
-                    recordType: "mime",
-                    mediaType: "application/octet-stream",
+                    recordType: "other",
                     data: command
                 };
 
@@ -196,11 +195,9 @@
                 await ndefReader.write({
                     records: [record]
                 });
-
                 updateStatus('指令发送成功，请查看卡片返回数据', 'success');
                 printLog(`指令发送成功: ${commandHex}`);
                 printLog('等待卡片响应...\n');
-
             } catch (error) {
                 updateStatus(`指令发送失败: ${error.message}`, 'error');
                 printLog(`指令发送失败：${error.message}`, 'error');
@@ -211,8 +208,23 @@
                     printLog('NFC通信状态异常\n');
                 }
             }
-        }
 
+            try {
+                ndef.onreading = (event) => {
+                const decoder = new TextDecoder();
+                let responseData = "";
+                for (const record of event.message.records) {
+                    if (record.recordType === "other") {
+                    responseData = decoder.decode(record.data);
+                    break;
+                    updateStatus(`卡片返回数据: ${responseData}`, 'success');
+                }
+            }}
+            } catch (error) {
+                updateStatus(`响应解析失败: ${error.message}`, 'error');
+                printLog(`响应解析失败：${error.message}`, 'error');
+            }
+        }
         // 发送自定义APDU指令
         async function sendCustomCommand(cla, ins, p1, p2, data = []) {
             if (!ndefReader || !currentTagId) return false;
