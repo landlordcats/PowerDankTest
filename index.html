@@ -3,915 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC卡片指令通信工具</title>
+    <title>网页NFC卡片交互</title>
     <style>
-        /* 全局样式重置 */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-            padding: 20px;
-        }
-
-        /* 容器样式 */
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-
-        /* 标题样式 */
-        header {
-            background: linear-gradient(135deg, #3498db, #2c3e50);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        /* 主内容区域 */
-        main {
-            padding: 20px;
-        }
-
-        /* 功能区域 */
-        .section {
-            margin-bottom: 30px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .section-header {
-            background-color: #f8f9fa;
-            padding: 15px 20px;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .section-header h2 {
-            font-size: 18px;
-            color: #2c3e50;
-            margin: 0;
-        }
-
-        .section-content {
-            padding: 20px;
-        }
-
-        /* 按钮样式 */
-        .button-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 20px 0;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            min-width: 200px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            background: linear-gradient(135deg, #2980b9, #21618c);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
-            color: white;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: linear-gradient(135deg, #27ae60, #219653);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(46, 204, 113, 0.3);
-        }
-
-        .btn-warning {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: white;
-        }
-
-        .btn-warning:hover:not(:disabled) {
-            background: linear-gradient(135deg, #c0392b, #a93226);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
-        }
-
-        .btn:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        /* 状态显示 */
-        .status-container {
-            background-color: #f8f9fa;
-            border-radius: 6px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .status-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .status-icon {
-            font-size: 20px;
-        }
-
-        .status-text {
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .status-details {
-            font-size: 14px;
-            color: #666;
-        }
-
-        /* 数据展示区 */
-        .data-container {
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            border-radius: 6px;
-            padding: 20px;
-            margin: 20px 0;
-            font-family: 'Courier New', monospace;
-            overflow-x: auto;
-        }
-
-        .data-header {
-            color: #3498db;
-            font-weight: 600;
-            margin-bottom: 10px;
-            font-size: 14px;
-        }
-
-        .data-content {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            line-height: 1.8;
-        }
-
-        .hex-byte {
-            padding: 2px 6px;
-            margin: 0 2px;
-            background-color: #34495e;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-
-        .send-byte {
-            background-color: #27ae60;
-            color: white;
-        }
-
-        .receive-byte {
-            background-color: #3498db;
-            color: white;
-        }
-
-        .error-byte {
-            background-color: #e74c3c;
-            color: white;
-        }
-
-        /* 时间戳 */
-        .timestamp {
-            color: #95a5a6;
-            font-size: 12px;
-            margin-left: 10px;
-        }
-
-        /* 步骤指示器 */
-        .steps-container {
-            display: flex;
-            justify-content: space-between;
-            margin: 20px 0;
-            position: relative;
-        }
-
-        .steps-container::before {
-            content: '';
-            position: absolute;
-            top: 15px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background-color: #e0e0e0;
-            z-index: 1;
-        }
-
-        .step {
-            position: relative;
-            z-index: 2;
-            text-align: center;
-            flex: 1;
-        }
-
-        .step-circle {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background-color: #e0e0e0;
-            color: #666;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 10px;
-            font-weight: bold;
-        }
-
-        .step.active .step-circle {
-            background-color: #3498db;
-            color: white;
-        }
-
-        .step.completed .step-circle {
-            background-color: #2ecc71;
-            color: white;
-        }
-
-        .step-label {
-            font-size: 12px;
-            color: #666;
-        }
-
-        .step.active .step-label {
-            color: #3498db;
-            font-weight: 600;
-        }
-
-        .step.completed .step-label {
-            color: #2ecc71;
-        }
-
-        /* 加载动画 */
-        .loader {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* 日志容器 */
-        .log-container {
-            max-height: 400px;
-            overflow-y: auto;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 10px;
-        }
-
-        .log-entry {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
-
-        .log-entry:last-child {
-            border-bottom: none;
-        }
-
-        .log-time {
-            color: #95a5a6;
-            font-weight: 600;
-        }
-
-        .log-type-info {
-            color: #3498db;
-        }
-
-        .log-type-success {
-            color: #2ecc71;
-        }
-
-        .log-type-error {
-            color: #e74c3c;
-        }
-
-        .log-type-warning {
-            color: #f39c12;
-        }
-
-        /* 响应式设计 */
-        @media (max-width: 768px) {
-            .container {
-                border-radius: 0;
-            }
-            
-            .button-group {
-                flex-direction: column;
-            }
-            
-            .btn {
-                width: 100%;
-            }
-            
-            .steps-container {
-                flex-direction: column;
-                gap: 20px;
-            }
-            
-            .steps-container::before {
-                display: none;
-            }
-            
-            .step {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                text-align: left;
-            }
-            
-            .step-circle {
-                margin: 0;
-                flex-shrink: 0;
-            }
-        }
+        body { padding: 20px; font-size: 16px; }
+        #log { margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 200px; white-space: pre-wrap; }
+        button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>NFC卡片指令通信工具</h1>
-            <p class="subtitle">通过Web NFC API与NFC卡片进行指令交互</p>
-        </header>
-        
-        <main>
-            <!-- 支持检测 -->
-            <div class="section">
-                <div class="section-header">
-                    <h2>系统检测</h2>
-                </div>
-                <div class="section-content">
-                    <div id="support-status" class="status-container">
-                        <div class="status-header">
-                            <span class="status-icon">🔍</span>
-                            <span class="status-text">正在检测NFC支持...</span>
-                        </div>
-                        <div class="status-details"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 操作区域 -->
-            <div class="section">
-                <div class="section-header">
-                    <h2>指令通信</h2>
-                    <span id="connection-status" class="status-text">未连接</span>
-                </div>
-                <div class="section-content">
-                    <div class="button-group">
-                        <button id="start-btn" class="btn btn-primary">
-                            <span id="start-icon">▶️</span>
-                            <span>开始指令通信</span>
-                        </button>
-                        <button id="stop-btn" class="btn btn-warning" disabled>
-                            <span>⏹️</span>
-                            <span>停止通信</span>
-                        </button>
-                        <button id="clear-btn" class="btn btn-secondary">
-                            <span>🗑️</span>
-                            <span>清除日志</span>
-                        </button>
-                    </div>
-                    
-                    <!-- 步骤指示器 -->
-                    <div class="steps-container">
-                        <div class="step" id="step1">
-                            <div class="step-circle">1</div>
-                            <div class="step-label">发送指令 1</div>
-                        </div>
-                        <div class="step" id="step2">
-                            <div class="step-circle">2</div>
-                            <div class="step-label">等待响应</div>
-                        </div>
-                        <div class="step" id="step3">
-                            <div class="step-circle">3</div>
-                            <div class="step-label">发送指令 2</div>
-                        </div>
-                        <div class="step" id="step4">
-                            <div class="step-circle">4</div>
-                            <div class="step-label">等待 20ms</div>
-                        </div>
-                        <div class="step" id="step5">
-                            <div class="step-circle">5</div>
-                            <div class="step-label">发送指令 3</div>
-                        </div>
-                        <div class="step" id="step6">
-                            <div class="step-circle">6</div>
-                            <div class="step-label">完成通信</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 数据展示区 -->
-            <div class="section">
-                <div class="section-header">
-                    <h2>通信数据</h2>
-                    <span id="card-info">未检测到卡片</span>
-                </div>
-                <div class="section-content">
-                    <div id="data-display" class="data-container">
-                        <div class="data-header">指令通信记录：</div>
-                        <div class="data-content" id="data-content">
-                            等待开始通信...
-                        </div>
-                    </div>
-                    
-                    <!-- 详细日志 -->
-                    <div class="section-header">
-                        <h3>详细日志</h3>
-                        <span id="log-count">0 条记录</span>
-                    </div>
-                    <div class="log-container" id="log-container">
-                        <!-- 日志条目将在这里动态添加 -->
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 指令说明 -->
-            <div class="section">
-                <div class="section-header">
-                    <h2>指令说明</h2>
-                </div>
-                <div class="section-content">
-                    <div style="font-family: monospace; line-height: 1.8;">
-                        <div style="margin-bottom: 10px;">
-                            <strong>指令序列：</strong>
-                        </div>
-                        <div style="margin-bottom: 5px; color: #27ae60;">
-                            1. 发送: <span class="hex-byte send-byte">0xC2</span> <span class="hex-byte send-byte">0xFF</span>
-                        </div>
-                        <div style="margin-bottom: 5px; color: #3498db;">
-                            等待卡片响应...
-                        </div>
-                        <div style="margin-bottom: 5px; color: #27ae60;">
-                            2. 等待 1ms 后发送: <span class="hex-byte send-byte">0x03</span> <span class="hex-byte send-byte">0x00</span> <span class="hex-byte send-byte">0x00</span> <span class="hex-byte send-byte">0x00</span>
-                        </div>
-                        <div style="margin-bottom: 5px;">
-                            (此指令无回应)
-                        </div>
-                        <div style="margin-bottom: 5px; color: #27ae60;">
-                            3. 等待 20ms 后发送: <span class="hex-byte send-byte">0x30</span> <span class="hex-byte send-byte">0xFC</span>
-                        </div>
-                        <div style="margin-bottom: 5px; color: #3498db;">
-                            等待卡片响应...
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
+    <button id="startNfc">启动NFC检测</button>
+    <div id="log">日志信息：\n</div>
 
     <script>
-        // NFC通信管理器
-        class NFCCommunicator {
-            constructor() {
-                this.nfcReader = null;
-                this.isProcessing = false;
-                this.currentCard = null;
-                this.logEntries = [];
-                this.currentStep = 0;
-                this.abortController = null;
-                
-                // 指令定义
-                this.commands = [
-                    { bytes: [0xC2, 0xFF], waitForResponse: true, delayBeforeNext: 1 },
-                    { bytes: [0x03, 0x00, 0x00, 0x00], waitForResponse: false, delayBeforeNext: 10 },
-                    { bytes: [0x30, 0xFC], waitForResponse: true, delayBeforeNext: 0 }
-                ];
-                
-                this.init();
+        const startBtn = document.getElementById('startNfc');
+        const log = document.getElementById('log');
+        let ndefReader; // 全局NFC阅读器实例，用于持续监听
+
+        // 日志打印工具
+        function printLog(text) {
+            log.textContent += `[${new Date().toLocaleTimeString()}] ${text}\n`;
+            log.scrollTop = log.scrollHeight; // 自动滚动到底部
+        }
+
+        // 检查浏览器是否支持Web NFC API
+        function checkNfcSupport() {
+            if (!('NDEFReader' in window)) {
+                printLog('错误：当前浏览器不支持Web NFC API（仅安卓Chrome/Edge支持）');
+                startBtn.disabled = true;
+                return false;
             }
-            
-            // 初始化
-            async init() {
-                this.updateSupportStatus('正在检测NFC支持...', 'info');
-                
-                if (!('NDEFReader' in window)) {
-                    this.updateSupportStatus('❌ 浏览器不支持 Web NFC API', 'error');
-                    this.updateSupportDetails('请使用最新版 Chrome/Edge 浏览器，并确保在 HTTPS 或 localhost 环境下运行');
-                    return;
-                }
-                
-                try {
-                    this.nfcReader = new NDEFReader();
-                    this.updateSupportStatus('✅ Web NFC API 可用', 'success');
-                    this.updateSupportDetails('设备支持NFC通信，可以开始使用');
+            printLog('检测到浏览器支持Web NFC API');
+            return true;
+        }
+
+        // 核心：NFC初始化、监听、指令发送、回应接收
+        async function initNfc() {
+            if (!checkNfcSupport()) return;
+
+            try {
+                // 1. 创建NDEFReader实例，申请NFC权限（用户需手动允许）
+                ndefReader = new NDEFReader();
+                printLog('请在弹窗中允许网页访问NFC设备');
+
+                // 2. 监听NFC卡片靠近事件（scan事件：卡片检测/重连触发）
+                ndefReader.addEventListener('scan', async (event) => {
+                    const tag = event.tag; // 获取NFC卡片标签对象，包含核心信息
                     
-                    this.bindEvents();
-                } catch (error) {
-                    this.updateSupportStatus('❌ NFC初始化失败', 'error');
-                    this.updateSupportDetails(error.message || '未知错误');
-                }
-            }
-            
-            // 绑定事件
-            bindEvents() {
-                document.getElementById('start-btn').addEventListener('click', () => this.startCommunication());
-                document.getElementById('stop-btn').addEventListener('click', () => this.stopCommunication());
-                document.getElementById('clear-btn').addEventListener('click', () => this.clearLogs());
-            }
-            
-            // 开始通信
-            async startCommunication() {
-                if (this.isProcessing) return;
-                
-                try {
-                    this.isProcessing = true;
-                    this.resetSteps();
-                    this.updateConnectionStatus('等待卡片...', 'info');
-                    this.addLog('开始指令通信流程', 'info');
-                    
-                    document.getElementById('start-btn').disabled = true;
-                    document.getElementById('stop-btn').disabled = false;
-                    
-                    // 创建新的AbortController
-                    this.abortController = new AbortController();
-                    
-                    // 开始扫描卡片
-                    await this.nfcReader.scan({ 
-                        signal: this.abortController.signal 
-                    });
-                    
-                    this.nfcReader.onreading = async (event) => {
-                        try {
-                            const serialNumber = event.serialNumber || '未知卡片';
-                            this.currentCard = serialNumber;
-                            this.updateCardInfo(`卡片: ${serialNumber}`);
-                            
-                            this.addLog(`检测到卡片: ${serialNumber}`, 'success');
-                            this.updateConnectionStatus('通信中...', 'info');
-                            
-                            // 执行指令序列
-                            await this.executeCommandSequence();
-                            
-                            this.updateConnectionStatus('通信完成', 'success');
-                            this.addLog('指令通信流程完成', 'success');
-                            
-                        } catch (error) {
-                            this.handleError('通信过程中出错', error);
-                        } finally {
-                            this.stopCommunication();
-                        }
-                    };
-                    
-                    this.nfcReader.onreadingerror = (event) => {
-                        this.handleError('读取错误', event.error);
-                    };
-                    
-                } catch (error) {
-                    this.handleError('启动通信失败', error);
-                    this.stopCommunication();
-                }
-            }
-            
-            // 执行指令序列
-            async executeCommandSequence() {
-                for (let i = 0; i < this.commands.length; i++) {
-                    this.currentStep = i;
-                    this.updateStep(i, 'active');
-                    
-                    const command = this.commands[i];
-                    const stepNumber = i + 1;
-                    
-                    this.addLog(`步骤 ${stepNumber}: 发送指令 ${this.bytesToHex(command.bytes)}`, 'info');
-                    this.displayData(`发送指令 ${stepNumber}: ${this.bytesToHex(command.bytes)}`, 'send');
-                    
-                    // 这里需要根据实际API实现指令发送
-                    // 注意：Web NFC API目前主要支持NDEF格式，原始指令发送可能需要特定实现
-                    await this.sendCommand(command.bytes);
-                    
-                    // 等待响应
-                    if (command.waitForResponse) {
-                        this.updateStep(i, 'completed');
-                        this.currentStep = i + 0.5;
-                        this.addLog(`等待卡片响应...`, 'info');
-                        
-                        // 模拟等待响应（实际应该通过事件监听）
-                        const response = await this.waitForResponse(1000);
-                        
-                        if (response) {
-                            this.displayData(`收到响应: ${this.bytesToHex(response)}`, 'receive');
-                            this.addLog(`收到响应: ${this.bytesToHex(response)}`, 'success');
-                        } else {
-                            this.displayData('未收到响应', 'error');
-                            this.addLog('未收到响应', 'warning');
-                        }
-                    } else {
-                        this.updateStep(i, 'completed');
-                        this.addLog(`指令已发送（无回应）`, 'info');
+                    // 3. 读取NFC卡片唯一ID（tag ID）：Uint8Array格式，转十六进制更易读
+                    const tagId = Array.from(tag.id).map(byte => byte.toString(16).padStart(2, '0')).join(':');
+                    printLog(`检测到NFC卡片 | 卡片ID：${tagId}`);
+                    printLog(`卡片支持的协议：${tag.serialNumber ? 'ISO 14443A/B' : '其他'}`);
+
+                    try {
+                        // 4. 向NFC卡片发送自定义指令（核心步骤）
+                        // 指令格式：Uint8Array（需遵循你的NFC卡片通信协议，示例为通用测试指令）
+                        // 示例：发送「00 A4 04 00 00」（选择空应用，多数NFC卡片支持）
+                        const sendCommand = new Uint8Array([0x00, 0xA4, 0x04, 0x00, 0x00]);
+                        printLog(`发送指令（十六进制）：${Array.from(sendCommand).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+
+                        // 5. 等待并接收卡片回应（write方法返回回应数据，Uint8Array格式）
+                        // write方法：向NFC卡片写入/发送指令，自动等待回应，超时抛错
+                        const response = await ndefReader.write(sendCommand, {
+                            signal: AbortSignal.timeout(5000) // 5秒超时，避免无限等待
+                        });
+
+                        // 6. 解析回应数据（转十六进制，方便查看和业务处理）
+                        const responseHex = Array.from(response).map(byte => byte.toString(16).padStart(2, '0')).join(' ');
+                        printLog(`卡片回应成功（十六进制）：${responseHex}`);
+                        printLog('------------------------NFC交互完成------------------------\n');
+
+                    } catch (sendErr) {
+                        printLog(`指令发送/回应接收失败：${sendErr.message}`);
+                        printLog('请检查指令格式是否符合卡片协议，或卡片是否支持该指令\n');
                     }
-                    
-                    // 延迟
-                    if (command.delayBeforeNext > 0 && i < this.commands.length - 1) {
-                        this.addLog(`等待 ${command.delayBeforeNext}ms...`, 'info');
-                        await this.delay(command.delayBeforeNext);
-                    }
-                }
-                
-                this.currentStep = this.commands.length;
-                this.updateStep(this.commands.length - 1, 'completed');
-            }
-            
-            // 发送指令（模拟实现）
-            // 发送指令（实际NFC实现）
-            async sendCommand(bytes) {
-                if (!('NDEFReader' in window)) {
-                    this.addLog('当前浏览器不支持Web NFC API', 'error');
-                    throw new Error('Web NFC not supported');
-                }
-
-                try {
-                    this.addLog(`准备发送: ${this.bytesToHex(bytes)}`, 'info');
-                    
-                    // 创建NDEFReader实例
-                    const ndef = new NDEFReader();
-                    
-                    // 创建Opaque记录类型，用于包装原始指令
-                    // Opaque类型允许存储任意数据
-                    const record = {
-                        recordType: "mime",
-                        mediaType: "application/octet-stream", // 表示二进制数据
-                        data: new Uint8Array(bytes)
-                    };
-
-                    // 将记录写入NFC标签
-                    await ndef.write({
-                        records: [record]
-                    });
-                    
-                    this.addLog(`指令发送成功: ${this.bytesToHex(bytes)}`, 'success');
-                    return true;
-                    
-                } catch (error) {
-                    this.addLog(`发送失败: ${error.message}`, 'error');
-                    throw error;
-                }
-            }
-
-            // 等待响应（实际NFC实现）
-            async waitForResponse(timeout = 1000) {
-                if (!('NDEFReader' in window)) {
-                    throw new Error('Web NFC not supported');
-                }
-
-                return new Promise((resolve, reject) => {
-                    let timeoutId;
-                    const ndef = new NDEFReader();
-                    
-                    // 设置超时
-                    timeoutId = setTimeout(() => {
-                        ndef.removeEventListener("reading", handleReading);
-                        resolve(null);
-                        this.addLog('等待响应超时', 'warning');
-                    }, timeout);
-
-                    // 处理读取事件
-                    const handleReading = ({ message }) => {
-                        clearTimeout(timeoutId);
-                        ndef.removeEventListener("reading", handleReading);
-                        
-                        try {
-                            // 解析响应数据
-                            const record = message.records[0];
-                            if (record.recordType === "opaque") {
-                                const responseData = Array.from(new Uint8Array(record.data));
-                                this.addLog(`收到响应: ${this.bytesToHex(responseData)}`, 'success');
-                                resolve(responseData);
-                            } else {
-                                resolve(null);
-                            }
-                        } catch (error) {
-                            resolve(null);
-                        }
-                    };
-
-                    // 开始监听NFC读取
-                    ndef.addEventListener("reading", handleReading);
-                    
-                    ndef.scan().catch(error => {
-                        clearTimeout(timeoutId);
-                        reject(error);
-                    });
                 });
-            }
-            
-            // 停止通信
-            stopCommunication() {
-                if (this.abortController) {
-                    this.abortController.abort();
-                    this.abortController = null;
-                }
-                
-                this.isProcessing = false;
-                this.currentCard = null;
-                
-                document.getElementById('start-btn').disabled = false;
-                document.getElementById('stop-btn').disabled = true;
-                
-                this.updateConnectionStatus('已停止', 'info');
-                this.updateCardInfo('未检测到卡片');
-                
-                if (this.currentStep < this.commands.length) {
-                    this.addLog('通信已停止', 'warning');
-                }
-            }
-            
-            // 清除日志
-            clearLogs() {
-                this.logEntries = [];
-                this.updateLogDisplay();
-                document.getElementById('data-content').innerHTML = '日志已清除';
-                this.addLog('清除所有日志', 'info');
-            }
-            
-            // 辅助方法
-            bytesToHex(bytes) {
-                return bytes.map(b => `0x${b.toString(16).toUpperCase().padStart(2, '0')}`).join(' ');
-            }
-            
-            delay(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
-            
-            updateStep(stepIndex, state) {
-                const stepElement = document.getElementById(`step${stepIndex + 1}`);
-                if (stepElement) {
-                    stepElement.className = `step ${state}`;
-                }
-            }
-            
-            resetSteps() {
-                for (let i = 1; i <= 6; i++) {
-                    const stepElement = document.getElementById(`step${i}`);
-                    stepElement.className = 'step';
-                }
-                this.currentStep = 0;
-            }
-            
-            // 状态更新方法
-            updateSupportStatus(message, type) {
-                const statusElement = document.getElementById('support-status');
-                const icon = statusElement.querySelector('.status-icon');
-                const text = statusElement.querySelector('.status-text');
-                
-                icon.textContent = type === 'success' ? '✅' : 
-                                 type === 'error' ? '❌' : '🔍';
-                text.textContent = message;
-                text.style.color = type === 'success' ? '#27ae60' : 
-                                  type === 'error' ? '#e74c3c' : '#3498db';
-            }
-            
-            updateSupportDetails(message) {
-                const detailsElement = document.querySelector('#support-status .status-details');
-                detailsElement.textContent = message;
-            }
-            
-            updateConnectionStatus(status, type) {
-                const element = document.getElementById('connection-status');
-                element.textContent = status;
-                element.style.color = type === 'success' ? '#27ae60' : 
-                                     type === 'error' ? '#e74c3c' : '#3498db';
-            }
-            
-            updateCardInfo(info) {
-                document.getElementById('card-info').textContent = info;
-            }
-            
-            displayData(message, type = 'info') {
-                const dataContent = document.getElementById('data-content');
-                const timestamp = new Date().toLocaleTimeString();
-                const typeClass = type === 'send' ? 'send-byte' : 
-                                 type === 'receive' ? 'receive-byte' : 'error-byte';
-                
-                let html = message;
-                if (type === 'send' || type === 'receive') {
-                    // 高亮显示十六进制字节
-                    html = html.replace(/(0x[0-9A-F]+)/g, 
-                        `<span class="hex-byte ${typeClass}">$1</span>`);
-                }
-                
-                dataContent.innerHTML += `<div>${html} <span class="timestamp">${timestamp}</span></div>`;
-                dataContent.scrollTop = dataContent.scrollHeight;
-            }
-            
-            addLog(message, type = 'info') {
-                const timestamp = new Date().toLocaleTimeString();
-                const logEntry = {
-                    time: timestamp,
-                    message: message,
-                    type: type
-                };
-                
-                this.logEntries.push(logEntry);
-                this.updateLogDisplay();
-                
-                // 更新日志计数
-                document.getElementById('log-count').textContent = `${this.logEntries.length} 条记录`;
-            }
-            
-            updateLogDisplay() {
-                const container = document.getElementById('log-container');
-                container.innerHTML = '';
-                
-                this.logEntries.forEach(entry => {
-                    const logElement = document.createElement('div');
-                    logElement.className = 'log-entry';
-                    
-                    logElement.innerHTML = `
-                        <span class="log-time">[${entry.time}]</span>
-                        <span class="log-type-${entry.type}"> ${entry.message}</span>
-                    `;
-                    
-                    container.appendChild(logElement);
+
+                // 启动NFC监听（需用户授权后执行，仅能由用户交互触发，如点击按钮）
+                await ndefReader.scan({
+                    keepReading: true // 保持监听，支持多张卡片连续检测，设为false则检测一次后停止
                 });
-                
-                container.scrollTop = container.scrollHeight;
-            }
-            
-            handleError(context, error) {
-                console.error(`${context}:`, error);
-                
-                let errorMessage = context;
-                if (error.name === 'NotAllowedError') {
-                    errorMessage += ': 权限被拒绝，请允许浏览器访问NFC';
-                } else if (error.name === 'NotSupportedError') {
-                    errorMessage += ': 设备不支持此功能';
-                } else {
-                    errorMessage += `: ${error.message || '未知错误'}`;
+                printLog('NFC监听已启动，请将NFC卡片靠近手机背面\n');
+
+            } catch (initErr) {
+                printLog(`NFC初始化失败：${initErr.message}`);
+                if (initErr.name === 'NotAllowedError') {
+                    printLog('原因：用户拒绝了NFC权限申请，请重新启动并允许权限\n');
                 }
-                
-                this.addLog(errorMessage, 'error');
-                this.displayData(`错误: ${errorMessage}`, 'error');
             }
         }
-        
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            // 初始化NFC通信器
-            window.nfcCommunicator = new NFCCommunicator();
-            
-            // 添加一些初始日志
-            setTimeout(() => {
-                window.nfcCommunicator.addLog('系统初始化完成', 'success');
-                window.nfcCommunicator.addLog('点击"开始指令通信"按钮开始流程', 'info');
-            }, 1000);
-        });
+
+        // 绑定按钮点击事件（用户交互触发NFC初始化，浏览器安全限制）
+        startBtn.addEventListener('click', initNfc);
+
+        // 页面加载时检查支持性
+        window.onload = checkNfcSupport;
     </script>
 </body>
 </html>
