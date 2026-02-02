@@ -3,290 +3,623 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>网页NFC卡片交互</title>
+    <title>网页NFC读取工具 - 仅读取NDEF数据</title>
     <style>
-        body { padding: 20px; font-size: 16px; }
-        #log { margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 200px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; background: #f5f5f5; }
-        button { padding: 12px 24px; font-size: 16px; cursor: pointer; margin: 5px; }
-        .button-group { margin-bottom: 20px; }
-        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
-        .status.active { background: #d4edda; color: #155724; }
-        .status.error { background: #f8d7da; color: #721c24; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .status-idle {
+            background-color: #e8f4f8;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background-color: #c0392b;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .card-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .data-section {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        
+        .record-item {
+            border-left: 3px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            background-color: #34495e;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #4a6278;
+        }
+        
+        .record-type {
+            background-color: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .record-index {
+            color: #95a5a6;
+            font-size: 14px;
+        }
+        
+        .record-data {
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .hex-byte {
+            background-color: #4a6278;
+            padding: 2px 6px;
+            margin: 0 2px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .raw-data {
+            color: #95a5a6;
+            font-size: 14px;
+            margin-top: 10px;
+            border-top: 1px dashed #4a6278;
+            padding-top: 10px;
+        }
+        
+        .compatibility-note {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .note-list {
+            margin: 10px 0 0 20px;
+        }
+        
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .btn {
+                padding: 10px 20px;
+                font-size: 14px;
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
     </style>
 </head>
 <body>
-    <h2>网页NFC卡片交互</h2>
-    
-    <div class="button-group">
-        <button id="startNfc">启动NFC检测</button>
-        <button id="stopNfc" disabled>停止NFC检测</button>
-        <button id="sendCommand" disabled>发送测试指令</button>
+    <div class="container">
+        <h1>📱 NFC数据读取工具</h1>
+        <p class="subtitle">通过Web NFC API读取NFC卡片的NDEF数据（仅读取，不写入）</p>
+        
+        <div id="status" class="status status-idle">
+            🟡 就绪，点击"开始读取"按钮
+        </div>
+        
+        <div class="button-group" style="text-align: center;">
+            <button id="startBtn" class="btn btn-primary">开始读取</button>
+            <button id="stopBtn" class="btn btn-danger" disabled>停止读取</button>
+        </div>
+        
+        <div id="cardInfo" class="card-info" style="display: none;">
+            <h3>📋 卡片信息</h3>
+            <div id="cardDetails"></div>
+        </div>
+        
+        <div id="dataSection" class="data-section" style="display: none;">
+            <h3>📊 NDEF数据详情</h3>
+            <div id="ndefData"></div>
+        </div>
+        
+        <div class="compatibility-note">
+            <strong>📌 使用说明：</strong>
+            <ul class="note-list">
+                <li>仅支持读取NDEF格式的数据</li>
+                <li>需要Chrome/Edge for Android（版本81+）</li>
+                <li>需要在HTTPS或localhost环境下运行</li>
+                <li>首次使用需要授权NFC访问权限</li>
+                <li>将NFC卡片靠近手机背面进行读取</li>
+            </ul>
+        </div>
     </div>
-    
-    <div id="status" class="status"></div>
-    
-    <div id="log">日志信息：\n</div>
 
     <script>
-        const startBtn = document.getElementById('startNfc');
-        const stopBtn = document.getElementById('stopNfc');
-        const sendBtn = document.getElementById('sendCommand');
-        const log = document.getElementById('log');
-        const statusDiv = document.getElementById('status');
-        
-        let ndefReader = null;
-        let isScanning = false;
-        let currentTagId = null;
-
-        // 日志打印工具
-        function printLog(text, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            let prefix = '';
-            
-            switch(type) {
-                case 'error': prefix = '❌ ERROR:'; break;
-                case 'success': prefix = '✅ SUCCESS:'; break;
-                case 'warning': prefix = '⚠️ WARNING:'; break;
-                default: prefix = 'ℹ️ INFO:';
-            }
-            
-            log.textContent += `[${timestamp}] ${prefix} ${text}\n`;
-            log.scrollTop = log.scrollHeight;
-        }
-
-        // 更新状态显示
-        function updateStatus(message, type = '') {
-            statusDiv.textContent = message;
-            statusDiv.className = 'status';
-            if (type) {
-                statusDiv.classList.add(type);
-            }
-        }
-
-        // 检查浏览器是否支持Web NFC API
-        function checkNfcSupport() {
-            if (!('NDEFReader' in window)) {
-                updateStatus('当前浏览器不支持Web NFC API（仅安卓Chrome/Edge支持）', 'error');
-                printLog('错误：当前浏览器不支持Web NFC API（仅安卓Chrome/Edge支持）', 'error');
-                startBtn.disabled = true;
-                return false;
-            }
-            printLog('检测到浏览器支持Web NFC API');
-            return true;
-        }
-
-        // 核心：NFC初始化、监听
-        async function initNfc() {
-            if (!checkNfcSupport()) return;
-            
-            try {
-                ndefReader = new NDEFReader();
-                updateStatus('请在弹窗中允许网页访问NFC设备', 'warning');
-
-                // 监听NFC卡片靠近事件
-                ndefReader.addEventListener('reading', (event) => {
-                    const { message, serialNumber } = event;
-                    currentTagId = serialNumber;
-                    
-                    // 显示卡片ID
-                    if (serialNumber) {
-                        updateStatus(`检测到NFC卡片 | ID: ${serialNumber}`, 'active');
-                        printLog(`检测到NFC卡片 | 卡片ID：${serialNumber}`);
-                        sendBtn.disabled = false;
-                    }
-                    
-                    // 如果有消息记录，显示内容
-                    if (message && message.records.length > 0) {
-                        message.records.forEach((record, index) => {
-                            try {
-                                if (record.recordType === "text") {
-                                    const textDecoder = new TextDecoder(record.encoding);
-                                    const text = textDecoder.decode(record.data);
-                                    printLog(`记录 ${index+1} (文本): ${text}`);
-                                } else if (record.recordType === "url") {
-                                    printLog(`记录 ${index+1} (URL): ${record.data}`);
-                                } else if (record.recordType === "mime") {
-                                    const decoder = new TextDecoder();
-                                    const text = decoder.decode(record.data);
-                                    printLog(`记录 ${index+1} (MIME ${record.mediaType}): ${text}`);
-                                }
-                            } catch (e) {
-                                printLog(`记录 ${index+1} 解析失败: ${e.message}`, 'warning');
-                            }
-                        });
-                    }
-                });
-
-                // 启动NFC监听
-                await ndefReader.scan({
-                    signal: AbortSignal.timeout(30000) // 30秒后自动停止，避免长时间占用
-                });
+        class NFCReader {
+            constructor() {
+                this.reader = null;
+                this.isScanning = false;
+                this.currentCard = null;
+                this.abortController = null;
                 
-                isScanning = true;
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                updateStatus('NFC监听已启动，请将NFC卡片靠近手机背面', 'active');
-                printLog('NFC监听已启动，请将NFC卡片靠近手机背面\n');
-
-            } catch (error) {
-                isScanning = false;
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                sendBtn.disabled = true;
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.statusDiv = document.getElementById('status');
+                this.cardInfoDiv = document.getElementById('cardInfo');
+                this.cardDetailsDiv = document.getElementById('cardDetails');
+                this.dataSectionDiv = document.getElementById('dataSection');
+                this.ndefDataDiv = document.getElementById('ndefData');
                 
-                updateStatus(`NFC初始化失败: ${error.name}`, 'error');
-                printLog(`NFC初始化失败：${error.message}`, 'error');
-                
-                if (error.name === 'NotAllowedError') {
-                    printLog('用户拒绝了NFC权限申请，请重新启动并允许权限\n');
-                } else if (error.name === 'NotSupportedError') {
-                    printLog('设备不支持NFC功能\n');
-                }
-            }
-        }
-
-        // 停止NFC监听
-        async function stopNfc() {
-            if (ndefReader) {
-                try {
-                    // 停止扫描
-                    if (ndefReader.stop) {
-                        await ndefReader.stop();
-                    }
-                    ndefReader = null;
-                } catch (error) {
-                    printLog(`停止NFC时出错: ${error.message}`, 'warning');
-                }
+                this.bindEvents();
+                this.checkCompatibility();
             }
             
-            isScanning = false;
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            sendBtn.disabled = true;
-            currentTagId = null;
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.startReading());
+                this.stopBtn.addEventListener('click', () => this.stopReading());
+            }
             
-            updateStatus('NFC监听已停止', '');
-            printLog('NFC监听已停止\n');
-        }
-
-        // 发送指令到NFC卡片
-        async function sendNfcCommand() {
-            if (!ndefReader || !currentTagId) {
-                updateStatus('未检测到NFC卡片，请先靠近卡片', 'error');
-                printLog('错误：未检测到NFC卡片，请先靠近卡片', 'error');
-                return;
-            }
-
-            try {
-                // 示例指令：发送测试数据
-                // 可以根据需要修改指令内容
-                const command = new Uint8Array([0xC2, 0xFF]);
-                const commandHex = Array.from(command).map(b => b.toString(16).padStart(2, '0')).join(' ');
-                printLog(`准备发送指令: ${commandHex}`);
-                updateStatus('正在发送指令...', 'warning');
-
-                // 使用MIME类型记录发送指令
-                const record = {
-                    recordType: "mime",
-                    mediaType: "application/vnd.charger.cmd",
-                    data: command
-                };
-
-                // 向卡片写入数据
-                await ndefReader.write({
-                    records: [record]
-                });
-                updateStatus('指令发送成功，请查看卡片返回数据', 'success');
-                printLog(`指令发送成功: ${commandHex}`);
-                printLog('等待卡片响应...\n');
-            } catch (error) {
-                updateStatus(`指令发送失败: ${error.message}`, 'error');
-                printLog(`指令发送失败：${error.message}`, 'error');
+            checkCompatibility() {
+                if (!('NDEFReader' in window)) {
+                    this.updateStatus('❌ 浏览器不支持Web NFC API', 'error');
+                    this.startBtn.disabled = true;
+                    this.showCompatibilityError();
+                    return false;
+                }
                 
-                if (error.name === 'NotAllowedError') {
-                    printLog('NFC权限已失效，请重新授权\n');
-                } else if (error.name === 'InvalidStateError') {
-                    printLog('NFC通信状态异常\n');
-                }
-            }
-
-            try {
-                ndef.onreading = (event) => {
-                const decoder = new TextDecoder();
-                let responseData = "";
-                for (const record of event.message.records) {
-                    if (record.recordType === "other") {
-                    responseData = decoder.decode(record.data);
-                    break;
-                    updateStatus(`卡片返回数据: ${responseData}`, 'success');
-                }
-            }}
-            } catch (error) {
-                updateStatus(`响应解析失败: ${error.message}`, 'error');
-                printLog(`响应解析失败：${error.message}`, 'error');
-            }
-        }
-        // 发送自定义APDU指令
-        async function sendCustomCommand(cla, ins, p1, p2, data = []) {
-            if (!ndefReader || !currentTagId) return false;
-
-            try {
-                // 构建APDU指令
-                const command = [cla, ins, p1, p2];
-                if (data.length > 0) {
-                    command.push(data.length);
-                    command.push(...data);
-                }
-                command.push(0x00); // Le
-
-                const commandBytes = new Uint8Array(command);
-                const record = {
-                    recordType: "mime",
-                    mediaType: "application/octet-stream",
-                    data: commandBytes
-                };
-
-                await ndefReader.write({ records: [record] });
-                printLog(`APDU指令发送成功: ${Array.from(commandBytes).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+                this.updateStatus('✅ 浏览器支持Web NFC API', 'idle');
                 return true;
-
-            } catch (error) {
-                printLog(`APDU指令发送失败: ${error.message}`, 'error');
-                return false;
+            }
+            
+            showCompatibilityError() {
+                this.statusDiv.innerHTML = `
+                    ❌ 浏览器不支持Web NFC API
+                    <br>
+                    <small>请使用以下浏览器：</small>
+                    <br>
+                    <small>• Chrome for Android（81+）</small>
+                    <br>
+                    <small>• Edge for Android（91+）</small>
+                `;
+            }
+            
+            async startReading() {
+                if (this.isScanning) return;
+                
+                try {
+                    // 重置显示
+                    this.resetDisplay();
+                    
+                    // 更新状态
+                    this.updateStatus('<span class="loader"></span>等待NFC卡片靠近...', 'active');
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    
+                    // 创建新的读取器和终止控制器
+                    this.reader = new NDEFReader();
+                    this.abortController = new AbortController();
+                    
+                    // 开始扫描
+                    await this.reader.scan({ signal: this.abortController.signal });
+                    
+                    // 设置读取事件监听器
+                    this.reader.onreading = (event) => {
+                        this.handleReading(event);
+                    };
+                    
+                    // 设置错误监听器
+                    this.reader.onreadingerror = (event) => {
+                        console.error('读取错误:', event);
+                        this.updateStatus('⚠️ 读取过程中发生错误', 'error');
+                    };
+                    
+                    this.isScanning = true;
+                    
+                } catch (error) {
+                    this.handleError('启动NFC读取失败', error);
+                    this.stopReading();
+                }
+            }
+            
+            handleReading(event) {
+                try {
+                    this.isScanning = false;
+                    
+                    // 获取卡片信息
+                    const serialNumber = event.serialNumber || '未知';
+                    this.currentCard = serialNumber;
+                    
+                    // 显示卡片信息
+                    this.showCardInfo(serialNumber, event.message);
+                    
+                    // 解析并显示NDEF数据
+                    this.showNDEFData(event.message);
+                    
+                    // 更新状态
+                    this.updateStatus('✅ 数据读取成功', 'idle');
+                    
+                    // 重新启用开始按钮
+                    setTimeout(() => {
+                        this.startBtn.disabled = false;
+                        this.stopBtn.disabled = true;
+                    }, 2000);
+                    
+                } catch (error) {
+                    this.handleError('处理读取数据失败', error);
+                }
+            }
+            
+            showCardInfo(serialNumber, message) {
+                // 显示卡片信息区域
+                this.cardInfoDiv.style.display = 'block';
+                
+                let infoHTML = `
+                    <div><strong>卡片序列号：</strong>${serialNumber}</div>
+                    <div><strong>NDEF记录数量：</strong>${message.records.length}</div>
+                `;
+                
+                this.cardDetailsDiv.innerHTML = infoHTML;
+            }
+            
+            showNDEFData(message) {
+                // 显示数据区域
+                this.dataSectionDiv.style.display = 'block';
+                this.ndefDataDiv.innerHTML = '';
+                
+                if (message.records.length === 0) {
+                    this.ndefDataDiv.innerHTML = '<div class="record-item">📭 卡片中没有NDEF数据</div>';
+                    return;
+                }
+                
+                // 遍历所有NDEF记录
+                message.records.forEach((record, index) => {
+                    const recordElement = this.createRecordElement(record, index);
+                    this.ndefDataDiv.appendChild(recordElement);
+                });
+            }
+            
+            createRecordElement(record, index) {
+                const recordDiv = document.createElement('div');
+                recordDiv.className = 'record-item';
+                
+                // 记录头部
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'record-header';
+                
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'record-type';
+                typeSpan.textContent = record.recordType.toUpperCase();
+                
+                const indexSpan = document.createElement('span');
+                indexSpan.className = 'record-index';
+                indexSpan.textContent = `记录 #${index + 1}`;
+                
+                headerDiv.appendChild(typeSpan);
+                headerDiv.appendChild(indexSpan);
+                
+                // 记录数据
+                const dataDiv = document.createElement('div');
+                dataDiv.className = 'record-data';
+                
+                // 根据记录类型显示不同内容
+                dataDiv.innerHTML = this.formatRecordData(record);
+                
+                // 原始数据
+                if (record.data && record.data.byteLength > 0) {
+                    const rawDiv = document.createElement('div');
+                    rawDiv.className = 'raw-data';
+                    rawDiv.innerHTML = this.formatRawData(record.data);
+                    dataDiv.appendChild(rawDiv);
+                }
+                
+                recordDiv.appendChild(headerDiv);
+                recordDiv.appendChild(dataDiv);
+                
+                return recordDiv;
+            }
+            
+            formatRecordData(record) {
+                let html = '';
+                
+                switch (record.recordType) {
+                    case 'text':
+                        html = this.formatTextRecord(record);
+                        break;
+                    
+                    case 'url':
+                        html = this.formatUrlRecord(record);
+                        break;
+                    
+                    case 'mime':
+                        html = this.formatMimeRecord(record);
+                        break;
+                    
+                    case 'empty':
+                        html = '<div>📄 空记录</div>';
+                        break;
+                    
+                    case 'opaque':
+                        html = this.formatOpaqueRecord(record);
+                        break;
+                    
+                    case 'unknown':
+                        html = '<div>❓ 未知类型记录</div>';
+                        break;
+                    
+                    default:
+                        html = `<div>🔍 记录类型: ${record.recordType}</div>`;
+                }
+                
+                return html;
+            }
+            
+            formatTextRecord(record) {
+                try {
+                    const decoder = new TextDecoder(record.encoding || 'utf-8');
+                    const text = decoder.decode(record.data);
+                    
+                    return `
+                        <div><strong>📝 文本内容：</strong>${this.escapeHtml(text)}</div>
+                        <div><strong>语言：</strong>${record.lang || '未指定'}</div>
+                        <div><strong>编码：</strong>${record.encoding || 'utf-8'}</div>
+                    `;
+                } catch (error) {
+                    return `<div>❌ 无法解码文本记录：${error.message}</div>`;
+                }
+            }
+            
+            formatUrlRecord(record) {
+                try {
+                    const decoder = new TextDecoder();
+                    const url = decoder.decode(record.data);
+                    
+                    return `
+                        <div><strong>🔗 URL地址：</strong><a href="${this.escapeHtml(url)}" target="_blank">${this.escapeHtml(url)}</a></div>
+                    `;
+                } catch (error) {
+                    return `<div>❌ 无法解码URL记录：${error.message}</div>`;
+                }
+            }
+            
+            formatMimeRecord(record) {
+                try {
+                    const decoder = new TextDecoder();
+                    const text = decoder.decode(record.data);
+                    
+                    // 检查是否为可打印文本
+                    const isPrintable = /^[\x20-\x7E\n\r\t]*$/.test(text);
+                    
+                    if (isPrintable && text.trim().length > 0) {
+                        return `
+                            <div><strong>📄 MIME类型：</strong>${record.mediaType}</div>
+                            <div><strong>内容：</strong>${this.escapeHtml(text)}</div>
+                        `;
+                    } else {
+                        return `
+                            <div><strong>📄 MIME类型：</strong>${record.mediaType}</div>
+                            <div><strong>二进制数据</strong></div>
+                        `;
+                    }
+                } catch (error) {
+                    return `
+                        <div><strong>📄 MIME类型：</strong>${record.mediaType}</div>
+                        <div>❌ 无法解码MIME记录</div>
+                    `;
+                }
+            }
+            
+            formatOpaqueRecord(record) {
+                const byteCount = record.data ? record.data.byteLength : 0;
+                
+                return `
+                    <div><strong>🔧 原始数据记录</strong></div>
+                    <div><strong>数据大小：</strong>${byteCount} 字节</div>
+                `;
+            }
+            
+            formatRawData(data) {
+                const bytes = new Uint8Array(data);
+                const hexString = Array.from(bytes)
+                    .map(byte => byte.toString(16).padStart(2, '0').toUpperCase())
+                    .join(' ');
+                
+                const preview = hexString.length > 100 ? hexString.substring(0, 100) + '...' : hexString;
+                
+                return `
+                    <div><strong>🔢 十六进制：</strong>${preview}</div>
+                    <div><strong>📏 字节数：</strong>${bytes.length}</div>
+                `;
+            }
+            
+            stopReading() {
+                if (this.abortController) {
+                    this.abortController.abort();
+                    this.abortController = null;
+                }
+                
+                if (this.reader) {
+                    this.reader = null;
+                }
+                
+                this.isScanning = false;
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                
+                this.updateStatus('⏹️ 读取已停止', 'idle');
+            }
+            
+            resetDisplay() {
+                this.cardInfoDiv.style.display = 'none';
+                this.dataSectionDiv.style.display = 'none';
+                this.cardDetailsDiv.innerHTML = '';
+                this.ndefDataDiv.innerHTML = '';
+            }
+            
+            updateStatus(message, type = 'idle') {
+                this.statusDiv.innerHTML = message;
+                this.statusDiv.className = `status status-${type}`;
+            }
+            
+            handleError(context, error) {
+                console.error(`${context}:`, error);
+                
+                let errorMessage = context;
+                
+                switch (error.name) {
+                    case 'NotAllowedError':
+                        errorMessage += '：用户拒绝了NFC权限';
+                        break;
+                    case 'NotSupportedError':
+                        errorMessage += '：设备不支持NFC';
+                        break;
+                    case 'NotReadableError':
+                        errorMessage += '：无法读取NFC设备';
+                        break;
+                    case 'AbortError':
+                        errorMessage += '：操作被中止';
+                        break;
+                    default:
+                        if (error.message) {
+                            errorMessage += `：${error.message}`;
+                        }
+                }
+                
+                this.updateStatus(`❌ ${errorMessage}`, 'error');
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
             }
         }
-
-        // 绑定按钮事件
-        startBtn.addEventListener('click', initNfc);
-        stopBtn.addEventListener('click', stopNfc);
-        sendBtn.addEventListener('click', sendNfcCommand);
-
-        // 页面加载时检查支持性
-        window.onload = () => {
-            checkNfcSupport();
-            
-            // 页面卸载时停止NFC
-            window.addEventListener('beforeunload', stopNfc);
-        };
-
-        // 示例：发送各种APDU指令
-        function sendExampleCommands() {
-            // SELECT PPSE命令
-            sendCustomCommand(
-                0x00, 0xA4, 0x04, 0x00,
-                [0x31, 0x50, 0x41, 0x59, 0x2E, 0x53, 0x59, 0x53, 0x2E, 0x44, 0x44, 0x46, 0x30, 0x31]
-            );
-
-            // GET DATA命令
-            setTimeout(() => {
-                sendCustomCommand(0x80, 0xCA, 0x9F, 0x17);
-            }, 1000);
-
-            // READ BINARY命令
-            setTimeout(() => {
-                sendCustomCommand(0x00, 0xB0, 0x00, 0x00, [0x0F]);
-            }, 2000);
-        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            window.nfcReader = new NFCReader();
+        });
     </script>
 </body>
 </html>
