@@ -685,9 +685,9 @@
                     // 创建Opaque记录类型，用于包装原始指令
                     // Opaque类型允许存储任意数据
                     const record = {
-                        recordType: "mime",
+                        recordType: "opaque",
                         data: new Uint8Array(bytes),
-                        mediaType: "application/octet-stream"
+                        
                     };
 
                     // 将记录写入NFC标签
