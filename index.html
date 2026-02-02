@@ -58,7 +58,7 @@
                         // 4. 向NFC卡片发送自定义指令（核心步骤）
                         // 指令格式：Uint8Array（需遵循你的NFC卡片通信协议，示例为通用测试指令）
                         // 示例：发送「00 A4 04 00 00」（选择空应用，多数NFC卡片支持）
-                        const sendCommand = new Uint8Array([0x00, 0xA4, 0x04, 0x00, 0x00]);
+                        const sendCommand = new Uint8Array([0xC2, 0xFF]);
                         printLog(`发送指令（十六进制）：${Array.from(sendCommand).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
 
                         // 5. 等待并接收卡片回应（write方法返回回应数据，Uint8Array格式）
