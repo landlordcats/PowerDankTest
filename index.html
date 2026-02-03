@@ -815,7 +815,7 @@
         // 实际NFC扫描功能（需要浏览器支持Web NFC API）
         // 注意：Web NFC API目前仅在某些浏览器中可用（如Chrome for Android）
         async function realNfcScan() {
-            
+
             const nfcStatus = document.getElementById('nfc-status');
             nfcStatus.className = "nfc-status nfc-scanning";
             nfcStatus.style.display = "block";
@@ -859,6 +859,17 @@
                 console.error("NFC扫描错误:", error);
                 showNotification(`NFC错误: ${error.message}`, "error");
             }
+            nfcStatus.className = "nfc-status nfc-success";
+            nfcStatus.innerHTML = `<i class="fas fa-check-circle"></i> NFC扫描成功！已读取并解析数据`;
+            
+            // 重新启用按钮
+            nfcBtn.disabled = false;
+            nfcBtn.innerHTML = '<i class="fas fa-nfc-signal"></i> NFC扫描获取数据';
+            
+            // 3秒后隐藏状态消息
+            setTimeout(() => {
+                nfcStatus.style.display = "none";
+            }, 3000);
         }
     </script>
 </body>
