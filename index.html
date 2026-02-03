@@ -477,7 +477,8 @@
             
             // 设置事件监听器
             document.getElementById('parse-url-btn').addEventListener('click', checkUrlForData);
-            document.getElementById('nfc-scan-btn').addEventListener('click', simulateNfcScan);
+            //document.getElementById('nfc-scan-btn').addEventListener('click', simulateNfcScan);
+            document.getElementById('nfc-scan-btn').addEventListener('click', realNfcScan);
             document.getElementById('reset-btn').addEventListener('click', resetToDefault);
             
             // 更新最后更新时间
@@ -687,83 +688,83 @@
             });
         }
         
-        // 模拟NFC扫描
-        function simulateNfcScan() {
-            const nfcStatus = document.getElementById('nfc-status');
-            nfcStatus.className = "nfc-status nfc-scanning";
-            nfcStatus.style.display = "block";
-            nfcStatus.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> 正在扫描NFC...请将设备靠近充电宝';
+        // // 模拟NFC扫描
+        // function simulateNfcScan() {
+        //     const nfcStatus = document.getElementById('nfc-status');
+        //     nfcStatus.className = "nfc-status nfc-scanning";
+        //     nfcStatus.style.display = "block";
+        //     nfcStatus.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> 正在扫描NFC...请将设备靠近充电宝';
             
-            // 禁用按钮
-            const nfcBtn = document.getElementById('nfc-scan-btn');
-            nfcBtn.disabled = true;
-            nfcBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> 扫描中...';
+        //     // 禁用按钮
+        //     const nfcBtn = document.getElementById('nfc-scan-btn');
+        //     nfcBtn.disabled = true;
+        //     nfcBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> 扫描中...';
             
-            // 模拟NFC扫描延迟
-            setTimeout(() => {
-                // 模拟从NFC读取的数据
-                const simulatedData = generateSimulatedData();
+        //     // 模拟NFC扫描延迟
+        //     setTimeout(() => {
+        //         // 模拟从NFC读取的数据
+        //         const simulatedData = generateSimulatedData();
                 
-                // 解析数据
-                parseDataString(simulatedData);
+        //         // 解析数据
+        //         parseDataString(simulatedData);
                 
-                // 显示成功消息
-                nfcStatus.className = "nfc-status nfc-success";
-                nfcStatus.innerHTML = `<i class="fas fa-check-circle"></i> NFC扫描成功！已读取并解析数据`;
+        //         // 显示成功消息
+        //         nfcStatus.className = "nfc-status nfc-success";
+        //         nfcStatus.innerHTML = `<i class="fas fa-check-circle"></i> NFC扫描成功！已读取并解析数据`;
                 
-                // 重新启用按钮
-                nfcBtn.disabled = false;
-                nfcBtn.innerHTML = '<i class="fas fa-nfc-signal"></i> NFC扫描获取数据';
+        //         // 重新启用按钮
+        //         nfcBtn.disabled = false;
+        //         nfcBtn.innerHTML = '<i class="fas fa-nfc-signal"></i> NFC扫描获取数据';
                 
-                // 3秒后隐藏状态消息
-                setTimeout(() => {
-                    nfcStatus.style.display = "none";
-                }, 3000);
+        //         // 3秒后隐藏状态消息
+        //         setTimeout(() => {
+        //             nfcStatus.style.display = "none";
+        //         }, 3000);
                 
-                showNotification('NFC数据读取成功!', 'success');
-            }, 2000);
-        }
+        //         showNotification('NFC数据读取成功!', 'success');
+        //     }, 2000);
+        // }
         
-        // 生成模拟数据
-        function generateSimulatedData() {
-            // 生成随机的模拟数据
-            let dataStr = "";
-            for (let i = 1; i <= 16; i++) {
-                // 为每个字节生成一个随机值，但保持在合理范围内
-                let byteValue;
-                switch(i) {
-                    case 1: case 2: // 容量
-                        byteValue = Math.floor(Math.random() * 256);
-                        break;
-                    case 3: case 4: // 过充电压
-                        byteValue = Math.floor(Math.random() * 256);
-                        break;
-                    case 5: case 6: // 过放电压
-                        byteValue = Math.floor(Math.random() * 256);
-                        break;
-                    case 7: case 9: // 温度小数
-                        byteValue = Math.floor(Math.random() * 100);
-                        break;
-                    case 8: case 10: // 温度整数
-                        byteValue = 30 + Math.floor(Math.random() * 30);
-                        break;
-                    case 11: // 厂家
-                        byteValue = Math.floor(Math.random() * 3);
-                        break;
-                    case 12: // 型号
-                        byteValue = Math.floor(Math.random() * 3);
-                        break;
-                    case 13: case 14: case 15: case 16: // 时间戳
-                        byteValue = Math.floor(Math.random() * 256);
-                        break;
-                    default:
-                        byteValue = Math.floor(Math.random() * 256);
-                }
-                dataStr += byteValue.toString(16).padStart(2, '0');
-            }
+        // // 生成模拟数据
+        // function generateSimulatedData() {
+        //     // 生成随机的模拟数据
+        //     let dataStr = "";
+        //     for (let i = 1; i <= 16; i++) {
+        //         // 为每个字节生成一个随机值，但保持在合理范围内
+        //         let byteValue;
+        //         switch(i) {
+        //             case 1: case 2: // 容量
+        //                 byteValue = Math.floor(Math.random() * 256);
+        //                 break;
+        //             case 3: case 4: // 过充电压
+        //                 byteValue = Math.floor(Math.random() * 256);
+        //                 break;
+        //             case 5: case 6: // 过放电压
+        //                 byteValue = Math.floor(Math.random() * 256);
+        //                 break;
+        //             case 7: case 9: // 温度小数
+        //                 byteValue = Math.floor(Math.random() * 100);
+        //                 break;
+        //             case 8: case 10: // 温度整数
+        //                 byteValue = 30 + Math.floor(Math.random() * 30);
+        //                 break;
+        //             case 11: // 厂家
+        //                 byteValue = Math.floor(Math.random() * 3);
+        //                 break;
+        //             case 12: // 型号
+        //                 byteValue = Math.floor(Math.random() * 3);
+        //                 break;
+        //             case 13: case 14: case 15: case 16: // 时间戳
+        //                 byteValue = Math.floor(Math.random() * 256);
+        //                 break;
+        //             default:
+        //                 byteValue = Math.floor(Math.random() * 256);
+        //         }
+        //         dataStr += byteValue.toString(16).padStart(2, '0');
+        //     }
             
-            return dataStr;
-        }
+        //     return dataStr;
+        // }
         
         // 重置数据
         function resetToDefault() {
