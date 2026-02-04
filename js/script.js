@@ -431,26 +431,15 @@ async function realNfcScan() {
                         nfcStatus.style.display = "none";
                     }, 3000);
 
-                    const TextElement = document.createElement('div');
-                    TextElement.className = `url-data`;
-                    TextElement.innerHTML = `
+                    const TextDiv = document.getElementById('url-data');
+ 
+                    TextDiv.innerHTML = `
                         <h3><i class="fas fa-code"></i> Text数据参数示例</h3>
                         <p>在text参数来传递充电宝数据，例如：</p>
                         <p>10271234567890123456789012345678</p>
-                        <p>当前Text数据: <span id="current-text-data">未检测到数据参数</span></p>
+                        <p>当前Text数据: <span id="current-text-data">${textData || '未检测到数据参数'}</span></p>
                     `;
-
-                    const textdiv = document.getElementById('control-section');
-                    textdiv.appendChild(TextElement);
-                    document.getElementById('current-text-data').textContent = textData;
                     
-
-            // <div class="url-data">
-            //     <h4><i class="fasfa-code"></i> URL数据参数示例</h4>
-            //     <p>在URL中添加data参数来传递充电宝数据，例如：</p>
-            //     <p>?data=10271234567890123456789012345678</p>
-            //     <p>当前URL数据: <span id="current-url-data">未检测到数据参数</span></p>
-            // </div>
                     // 更新界面
                     updateLastUpdateTime();
                 }
