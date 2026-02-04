@@ -47,7 +47,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 设置事件监听器
     document.getElementById('parse-url-btn').addEventListener('click', checkUrlForData);
     //document.getElementById('nfc-scan-btn').addEventListener('click', simulateNfcScan);
-    document.getElementById('nfc-scan-btn').addEventListener('click', realNfcScan);
+    document.getElementById('nfc-scan-btn').addEventListener('click', async function() {
+        await realNfcScan();
+    });
     document.getElementById('reset-btn').addEventListener('click', resetToDefault);
     
     // 更新最后更新时间
@@ -442,6 +444,9 @@ async function realNfcScan() {
                     
                     // 更新界面
                     updateLastUpdateTime();
+                    if (!nfcBtn.disabled) {
+                        return;
+                    }
                 }
             }
         });
