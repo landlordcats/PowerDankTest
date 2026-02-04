@@ -439,7 +439,11 @@ async function realNfcScan() {
                         <p>10271234567890123456789012345678</p>
                         <p>当前Text数据: <span id="current-text-data">未检测到数据参数</span></p>
                     `;
+
+                    const textdiv = document.getElementById('control-section');
+                    textdiv.appendChild(TextElement);
                     document.getElementById('current-text-data').textContent = textData;
+                    
 
             // <div class="url-data">
             //     <h4><i class="fasfa-code"></i> URL数据参数示例</h4>
